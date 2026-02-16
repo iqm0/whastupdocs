@@ -171,6 +171,11 @@ Retrieval gate thresholds:
   - `WIUD_SLACK_CHANGE_MIN_SEVERITY`
   - `WIUD_SLACK_CHANGE_INCLUDE_UPDATED`
   - `WIUD_SLACK_CHANGE_MAX_EVENTS`
+- Send a manual onboarding test message:
+  - CLI: `npm run slack:test -- --source onboarding`
+  - API (auth required): `POST /v1/alerts/slack/test`
+    - uses `WIUD_SLACK_CHANGE_WEBHOOK_URL` by default
+    - optional `webhook_url` override requires `WIUD_ALLOW_TEST_WEBHOOK_OVERRIDE=true`
 
 ## License
 

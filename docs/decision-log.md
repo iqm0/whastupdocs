@@ -271,3 +271,16 @@ Change intelligence only matters when teams see it in operational channels fast 
 Impact:
 - Optional Slack notifications are now available without adding a separate service.
 - Alert noise is constrained via min severity, include-updated toggle, and max event limits.
+
+## 2026-02-16 - Slack onboarding verification endpoint and CLI
+Decision:
+Provide two explicit test-notification entrypoints:
+1) `POST /v1/alerts/slack/test` (auth-protected API),
+2) `npm run slack:test` (operator CLI via ingestion-worker).
+
+Why:
+Slack integrations need a fast, deterministic way to verify webhook delivery during onboarding and incident debugging.
+
+Impact:
+- Teams can validate webhook wiring without waiting for real change events.
+- Webhook override in API is disabled by default and requires `WIUD_ALLOW_TEST_WEBHOOK_OVERRIDE=true`.

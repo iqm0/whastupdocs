@@ -7,6 +7,7 @@ import { closeDbPool } from "./lib/db.js";
 import { closeQueue } from "./lib/queue.js";
 import { authorizeRequest, resolveRequestContext } from "./lib/request-context.js";
 import { registerAnswerRoute } from "./routes/answer.js";
+import { registerAlertRoutes } from "./routes/alerts.js";
 import { registerChangeRoutes } from "./routes/changes.js";
 import { registerMetricsRoutes } from "./routes/metrics.js";
 import { registerSearchRoute } from "./routes/search.js";
@@ -62,6 +63,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await registerSearchRoute(app);
   await registerAnswerRoute(app);
+  await registerAlertRoutes(app);
   await registerSourceRoutes(app);
   await registerChangeRoutes(app);
   await registerMetricsRoutes(app);

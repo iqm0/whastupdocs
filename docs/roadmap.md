@@ -46,6 +46,7 @@ Status: In Progress
 
 - [x] PR/CI doc drift checks
 - [x] Slack webhook alerts for change events
+- [x] Slack onboarding test endpoint and operator CLI
 - [ ] Slack runtime integration
 - [ ] IDE extension integration
 - [x] Unified reliability metrics dashboard

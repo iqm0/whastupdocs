@@ -106,6 +106,44 @@ export function buildSlackChangeMessage(source: string, events: ChangeEvent[]): 
   return lines.join("\n");
 }
 
+export async function postSlackText(webhookUrl: string, text: string): Promise<void> {
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`slack_webhook_failed status=${response.status} body=${body}`);
+  }
+}
+
+export async function sendSlackTestMessage(input?: {
+  webhook_url?: string;
+  source?: string;
+  actor?: string;
+  message?: string;
+}): Promise<void> {
+  const webhook = input?.webhook_url ?? process.env.WIUD_SLACK_CHANGE_WEBHOOK_URL;
+  if (!webhook) {
+    throw new Error("slack_webhook_not_configured");
+  }
+
+  const text =
+    input?.message?.trim() ||
+    [
+      "*what is up, docs* Slack test notification",
+      `source: \`${input?.source?.trim() || "manual"}\``,
+      `actor: \`${input?.actor?.trim() || "operator"}\``,
+      "status: onboarding webhook verified",
+    ].join("\n");
+
+  await postSlackText(webhook, text);
+}
+
 export async function notifySlackChanges(
   db: Pool,
   source: string,
@@ -147,16 +185,5 @@ export async function notifySlackChanges(
     return;
   }
 
-  const response = await fetch(webhook, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ text }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`slack_webhook_failed status=${response.status} body=${body}`);
-  }
+  await postSlackText(webhook, text);
 }

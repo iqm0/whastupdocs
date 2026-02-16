@@ -14,6 +14,7 @@
     "test": "npm -ws run test --if-present",
     "eval:classifier": "npm --workspace @wiud/ingestion-worker run eval:classifier",
     "eval:retrieval": "npm --workspace @wiud/query-api run eval:retrieval",
+    "slack:test": "npm --workspace @wiud/ingestion-worker run slack:test",
     "db:migrate": "./scripts/run-migrations.sh",
     "infra:up": "./scripts/infra-up.sh",
     "infra:down": "./scripts/infra-down.sh"

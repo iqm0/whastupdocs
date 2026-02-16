@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildSlackChangeMessage } from "../src/notifications.ts";
+import { buildSlackChangeMessage, sendSlackTestMessage } from "../src/notifications.ts";
 
 test("buildSlackChangeMessage filters low-priority updated events by default", () => {
   process.env.WIUD_SLACK_CHANGE_MIN_SEVERITY = "medium";
@@ -54,4 +54,21 @@ test("buildSlackChangeMessage returns null when no events pass filters", () => {
   ]);
 
   assert.equal(message, null);
+});
+
+test("sendSlackTestMessage posts test payload to webhook", async () => {
+  let posted = false;
+  globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+    posted = true;
+    const body = JSON.parse(String(init?.body ?? "{}"));
+    assert.match(String(body.text ?? ""), /Slack test notification/i);
+    return new Response("ok", { status: 200 });
+  }) as typeof fetch;
+
+  await sendSlackTestMessage({
+    webhook_url: "https://hooks.slack.com/services/T000/B000/XXX",
+    source: "onboarding",
+  });
+
+  assert.equal(posted, true);
 });

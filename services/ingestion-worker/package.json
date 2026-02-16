@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/worker.js",
     "eval:classifier": "tsx scripts/eval-change-classifier.ts",
+    "slack:test": "tsx scripts/send-slack-test.ts",
     "test": "node --test --import tsx tests/**/*.test.ts"
   },
   "dependencies": {

@@ -143,6 +143,29 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /v1/alerts/slack/test:
+    post:
+      summary: Send a Slack test notification for onboarding/webhook verification
+      operationId: sendSlackTestAlert
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SlackTestAlertRequest'
+      responses:
+        '202':
+          description: Test alert accepted and sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlackTestAlertResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
     bearerAuth:
@@ -434,6 +457,30 @@ components:
       properties:
         summary:
           $ref: '#/components/schemas/TelemetrySummary'
+    SlackTestAlertRequest:
+      type: object
+      properties:
+        webhook_url:
+          type: string
+          format: uri
+          description: Optional webhook override (allowed only when explicitly enabled).
+        source:
+          type: string
+        message:
+          type: string
+          maxLength: 2000
+    SlackTestAlertResponse:
+      type: object
+      required: [ok, webhook_target, sent_at]
+      properties:
+        ok:
+          type: boolean
+        webhook_target:
+          type: string
+          enum: [default, override]
+        sent_at:
+          type: string
+          format: date-time
     ErrorResponse:
       type: object
       required: [error, message]

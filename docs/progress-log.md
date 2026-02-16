@@ -103,6 +103,11 @@
   - optional webhook notifier for change events per sync run
   - severity and volume controls via env vars
   - added notifier tests for filter/format behavior
+- Added Slack onboarding test-notification paths:
+  - auth-protected API endpoint `POST /v1/alerts/slack/test`
+  - optional webhook override with explicit safety gate (`WIUD_ALLOW_TEST_WEBHOOK_OVERRIDE`)
+  - ingestion-worker operator CLI command: `npm run slack:test`
+  - query-api and ingestion-worker tests for onboarding test send path
 
 ### Validation snapshots
 

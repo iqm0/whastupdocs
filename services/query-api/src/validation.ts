@@ -53,3 +53,11 @@ export const TelemetryQuerySchema = z
     days: z.coerce.number().int().min(1).max(90).optional(),
   })
   .strict();
+
+export const SlackTestAlertRequestSchema = z
+  .object({
+    webhook_url: z.string().url().optional(),
+    source: z.string().min(1).optional(),
+    message: z.string().min(1).max(2000).optional(),
+  })
+  .strict();
