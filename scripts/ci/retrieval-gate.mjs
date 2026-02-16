@@ -67,6 +67,7 @@ async function main() {
   const rows = [];
   for (const fixture of fixtures) {
     const topK = fixture.top_k ?? 10;
+    const maxRank = fixture.max_rank ?? topK;
     const response = await request("/v1/search", {
       method: "POST",
       body: JSON.stringify({
@@ -89,8 +90,9 @@ async function main() {
       id: fixture.id,
       query: fixture.query,
       topK,
+      maxRank,
       rank,
-      hit: rank !== null,
+      hit: rank !== null && rank <= maxRank,
     });
   }
 
@@ -122,7 +124,9 @@ async function main() {
           min_hit_at_k: minHitAtK,
           min_mrr: minMrr,
         },
-        failed_cases: rows.filter((row) => !row.hit).map((row) => ({ id: row.id, query: row.query })),
+        failed_cases: rows
+          .filter((row) => !row.hit)
+          .map((row) => ({ id: row.id, query: row.query, rank: row.rank, max_rank: row.maxRank })),
       },
       null,
       2,

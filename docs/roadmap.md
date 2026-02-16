@@ -104,3 +104,4 @@ Status: In Progress
 - [x] Package change events into prescriptive migration/action recommendations
 - [x] Publish ICP-specific wedge pack (payments/identity first) with opinionated defaults
 - [x] Add generic query expansion and concise answer synthesis for intent-rich grounding
+- [x] Add section-intent ranking + action-step extraction and enforce rank-target eval fixtures

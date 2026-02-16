@@ -159,3 +159,44 @@ test("searchDocsWithPolicy expands intent terms for lexical retrieval", async ()
   assert.match(expanded, /\bsetup\b/);
   assert.match(expanded, /\beu\b/);
 });
+
+test("answerQuestion suppresses dashboard-log snippets when actionable setup evidence exists", async () => {
+  const now = new Date().toISOString();
+  const db = createFakeDb([
+    {
+      chunk_id: "chunk-1",
+      text: "Logs for Payment Initiation are available in the Dashboard activity page.",
+      heading_path: "Dashboard logs",
+      code_lang: null,
+      title: "Account - Activity, logs, and status",
+      url: "https://plaid.com/docs/account/activity",
+      source: "plaid",
+      version_tag: "latest",
+      last_changed_at: now,
+      ilike_score: 0.9,
+      fts_score: 0.88,
+    },
+    {
+      chunk_id: "chunk-2",
+      text: "To enable Payment Initiation in Europe, create a Link token with payment_initiation and authorize a payment.",
+      heading_path: "Quickstart",
+      code_lang: null,
+      title: "Payment Initiation setup",
+      url: "https://plaid.com/docs/payment-initiation",
+      source: "plaid",
+      version_tag: "latest",
+      last_changed_at: now,
+      ilike_score: 0.82,
+      fts_score: 0.8,
+    },
+  ]);
+
+  const response = await answerQuestion(db, {
+    question: "How do I enable payment initiation in Europe?",
+    max_citations: 2,
+    style: "concise",
+  });
+
+  assert.match(response.answer, /create a Link token/i);
+  assert.doesNotMatch(response.answer, /dashboard activity page/i);
+});

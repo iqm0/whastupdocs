@@ -129,6 +129,29 @@ function computeContentQualityScore(item: SearchResult): number {
   return Math.max(0, 1 - penalty);
 }
 
+function computeSectionTypeScore(item: SearchResult, query: string): number {
+  const terms = tokenize(query);
+  const actionIntent = terms.some((term) =>
+    ["enable", "setup", "configure", "integrate", "create", "start", "initiation"].includes(term)
+  );
+  if (!actionIntent) {
+    return 0.5;
+  }
+
+  const context = `${item.heading_path ?? ""} ${item.title} ${item.url}`.toLowerCase();
+  let score = 0.5;
+
+  if (/\b(quickstart|get started|get-started|how to|setup|configure|integration|guide)\b/.test(context)) {
+    score += 0.35;
+  }
+
+  if (/\b(dashboard|activity|logs?|errors?|status|reference|schema)\b/.test(context)) {
+    score -= 0.3;
+  }
+
+  return Math.max(0, Math.min(1, score));
+}
+
 function normalizeByMax(values: number[]): number[] {
   const max = values.reduce((acc, value) => Math.max(acc, value), 0);
   if (max <= 0) {
@@ -159,15 +182,17 @@ export function rerankHybridCandidates(
     const intentScore = computeIntentScore(item, intentTerms);
     const phraseScore = computePhraseScore(item, intentPhrases);
     const qualityScore = computeContentQualityScore(item);
+    const sectionTypeScore = computeSectionTypeScore(item, query);
     const ageMinutes = Math.max(0, (now - new Date(item.last_changed_at).getTime()) / 60000);
     const recencyScore = 1 / (1 + ageMinutes / (24 * 60));
     const combined =
-      item.ilike_score * 0.22 +
-      normalizedFts[idx]! * 0.24 +
-      normalizedSemantic[idx]! * 0.28 +
+      item.ilike_score * 0.2 +
+      normalizedFts[idx]! * 0.22 +
+      normalizedSemantic[idx]! * 0.26 +
       intentScore * 0.12 +
-      phraseScore * 0.1 +
-      qualityScore * 0.03 +
+      phraseScore * 0.09 +
+      sectionTypeScore * 0.08 +
+      qualityScore * 0.02 +
       recencyScore * 0.01;
 
     return {
@@ -183,6 +208,8 @@ export function rerankHybridCandidates(
       chunk_id: item.chunk_id,
       score: item.score,
       text: item.text,
+      heading_path: item.heading_path ?? null,
+      code_lang: item.code_lang ?? null,
       title: item.title,
       url: item.url,
       source: item.source,

@@ -257,14 +257,52 @@ function scoreAnswerLine(line: string, terms: string[], phrases: string[]): numb
   }
 
   const normalized = line.toLowerCase();
+  if (
+    /\b(dashboard|activity log|usage page|logs? for|analytics page|billable activity)\b/i.test(
+      normalized,
+    )
+  ) {
+    return 0;
+  }
   const termHits = terms.filter((term) => normalized.includes(term)).length;
   const phraseHits = phrases.filter((phrase) => normalized.includes(phrase)).length;
   const endpointBonus = /\/[a-z0-9_/-]+/.test(line) ? 0.1 : 0;
   const instructionBonus = /\b(create|call|enable|set|pass|must|should|configure|authorize|use)\b/i.test(line)
     ? 0.1
     : 0;
+  const stepBonus = /^(\d+\.|-)\s+/.test(line) || /\b(first|then|next|finally|step)\b/i.test(line)
+    ? 0.08
+    : 0;
 
-  return termHits / Math.max(1, terms.length) + phraseHits * 0.3 + endpointBonus + instructionBonus;
+  return (
+    termHits / Math.max(1, terms.length) +
+    phraseHits * 0.3 +
+    endpointBonus +
+    instructionBonus +
+    stepBonus
+  );
+}
+
+function scoreResultForActionability(
+  result: SearchResponse["results"][number],
+  terms: string[],
+): number {
+  const context = `${result.heading_path ?? ""} ${result.title} ${result.url}`.toLowerCase();
+  const actionIntent = terms.some((term) =>
+    ["enable", "setup", "configure", "integrate", "create", "start", "initiation"].includes(term)
+  );
+  if (!actionIntent) {
+    return 0;
+  }
+
+  let score = 0;
+  if (/\b(quickstart|get started|get-started|how to|setup|configure|integration|guide)\b/.test(context)) {
+    score += 0.35;
+  }
+  if (/\b(dashboard|activity|logs?|errors?|reference|schema)\b/.test(context)) {
+    score -= 0.25;
+  }
+  return score;
 }
 
 function composeConciseGroundedAnswer(
@@ -276,13 +314,14 @@ function composeConciseGroundedAnswer(
   const ranked: Array<{ text: string; score: number }> = [];
 
   for (const result of results.slice(0, 3)) {
+    const resultContextScore = scoreResultForActionability(result, terms);
     const segments = result.text
       .split(/\r?\n|(?<=[.!?])\s+/)
       .map((line) => line.replace(/\s+/g, " ").trim())
       .filter((line) => line.length > 0);
 
     for (const segment of segments) {
-      const score = scoreAnswerLine(segment, terms, phrases);
+      const score = scoreAnswerLine(segment, terms, phrases) + resultContextScore;
       if (score > 0) {
         ranked.push({ text: segment, score });
       }
@@ -364,6 +403,8 @@ type HybridCandidate = {
   chunk_id: string;
   score: number;
   text: string;
+  heading_path?: string | null;
+  code_lang?: string | null;
   title: string;
   url: string;
   source: string;
@@ -527,6 +568,8 @@ export async function searchDocsWithPolicy(
         )::float8
       ) AS fts_score,
       c.text,
+      c.heading_path,
+      c.code_lang,
       d.title,
       d.canonical_url AS url,
       s.id AS source,
@@ -546,6 +589,8 @@ export async function searchDocsWithPolicy(
     chunk_id: String(row.chunk_id),
     score: 0,
     text: String(row.text),
+    heading_path: row.heading_path ? String(row.heading_path) : null,
+    code_lang: row.code_lang ? String(row.code_lang) : null,
     title: String(row.title),
     url: String(row.url),
     source: String(row.source),

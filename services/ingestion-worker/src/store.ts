@@ -269,6 +269,26 @@ async function getCurrentDocumentText(db: Pool, documentId: string): Promise<str
   return result.rows.map((row) => String(row.text ?? "")).join("\n\n");
 }
 
+async function needsChunkMetadataBackfill(db: Pool, documentId: string): Promise<boolean> {
+  const result = await db.query(
+    `
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (
+               WHERE COALESCE(TRIM(heading_path), '') = ''
+                 AND COALESCE(TRIM(code_lang), '') = ''
+             )::int AS missing
+      FROM chunk
+      WHERE document_id = $1
+    `,
+    [documentId],
+  );
+
+  const row = result.rows[0];
+  const total = Number(row?.total ?? 0);
+  const missing = Number(row?.missing ?? 0);
+  return total > 0 && missing === total;
+}
+
 async function replaceChunks(
   db: Pool,
   documentId: string,
@@ -428,7 +448,13 @@ async function persistDocument(
   );
 
   if (!changed) {
-    return { changed: false, chunks_inserted: 0, change_events: 0 };
+    const needsBackfill = await needsChunkMetadataBackfill(db, existing.id);
+    if (!needsBackfill) {
+      return { changed: false, chunks_inserted: 0, change_events: 0 };
+    }
+
+    const chunksInserted = await replaceChunks(db, existing.id, doc.chunks, ingestedAt);
+    return { changed: false, chunks_inserted: chunksInserted, change_events: 0 };
   }
 
   const previousText = await getCurrentDocumentText(db, existing.id);

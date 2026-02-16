@@ -4,6 +4,7 @@
       "id": "openai-reasoning-guidance",
       "query": "openai reasoning models tool use pattern",
       "top_k": 8,
+      "max_rank": 3,
       "filters": {
         "sources": ["openai"],
         "version": "latest"
@@ -17,6 +18,7 @@
       "id": "stripe-webhook-signature",
       "query": "stripe webhook signature verification endpoint secret",
       "top_k": 8,
+      "max_rank": 3,
       "filters": {
         "sources": ["stripe"],
         "version": "latest"
@@ -30,6 +32,7 @@
       "id": "nextjs-routing-docs",
       "query": "nextjs app router routing pages and segments",
       "top_k": 8,
+      "max_rank": 3,
       "filters": {
         "sources": ["nextjs"],
         "version": "latest"
@@ -37,6 +40,36 @@
       "expected": {
         "source": "nextjs",
         "url_contains": "/routing"
+      }
+    },
+    {
+      "id": "plaid-payment-initiation-europe",
+      "query": "how to enable payment initiation in europe",
+      "top_k": 8,
+      "max_rank": 3,
+      "filters": {
+        "sources": ["plaid"],
+        "version": "latest",
+        "region": "eu"
+      },
+      "expected": {
+        "source": "plaid",
+        "url_contains": "/payment-initiation"
+      }
+    },
+    {
+      "id": "plaid-openbanking-sepa-intent",
+      "query": "open banking sepa payment initiation setup",
+      "top_k": 8,
+      "max_rank": 4,
+      "filters": {
+        "sources": ["plaid"],
+        "version": "latest",
+        "region": "eu"
+      },
+      "expected": {
+        "source": "plaid",
+        "url_contains": "/payment-initiation"
       }
     }
   ]

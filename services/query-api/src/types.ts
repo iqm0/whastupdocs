@@ -20,6 +20,8 @@ export type SearchResult = {
   chunk_id: string;
   score: number;
   text: string;
+  heading_path?: string | null;
+  code_lang?: string | null;
   title: string;
   url: string;
   source: string;

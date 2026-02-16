@@ -137,6 +137,11 @@
   - added provider-agnostic query expansion terms for lexical candidate generation
   - reranker now penalizes schema-heavy/noise chunks and boosts phrase-level intent coverage
   - concise answer composer now selects actionable evidence lines from top grounded chunks
+- Completed retrieval-depth hardening for Plaid/OpenBanking-style prompts:
+  - reranker now uses section-intent scoring (`heading_path` + title/url context) for action queries
+  - concise answer extraction now suppresses dashboard/log-only lines and prefers actionable steps
+  - retrieval evaluation now supports fixture `max_rank` targets in local eval and CI gate
+  - added Plaid/OpenBanking-intent fixtures to `scripts/eval/retrieval-fixtures.json`
 
 ### Validation snapshots
 

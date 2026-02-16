@@ -350,3 +350,19 @@ Impact:
 - Ingestion worker now stores and reuses document fetch metadata (`etag`, `last-modified`, status, checked_at) and tracks `304` not-modified pages.
 - Chunk persistence now writes `heading_path` and `code_lang` into `chunk`.
 - Query API retrieval now includes provider-agnostic query expansion and improved concise answer composition from high-signal lines.
+
+## 2026-02-16 - Section-intent retrieval + rank-target evaluation for fintech prompts
+Decision:
+Prioritize actionability for setup-style developer questions by:
+1) adding section-intent signals (`heading_path`, setup/log/reference heuristics) to hybrid ranking,
+2) extracting concise answers from high-signal actionable lines and suppressing dashboard/log noise,
+3) enforcing rank-target retrieval fixtures (`max_rank`) in both local eval and CI gate.
+
+Why:
+Grounded answers were technically correct but often non-actionable for integration tasks (for example, selecting log/status chunks instead of setup guidance).
+
+Impact:
+- Query API now carries chunk structure metadata (`heading_path`, `code_lang`) through retrieval and ranking.
+- Concise answers now favor setup steps and endpoint/action lines over operational-log text.
+- Retrieval quality checks now fail when expected documents only appear too deep in results, not just when absent.
+- Added Plaid/OpenBanking-style fixtures to continuously validate payments integration query quality.

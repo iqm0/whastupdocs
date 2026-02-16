@@ -16,6 +16,7 @@ type RetrievalFixture = {
   id: string;
   query: string;
   top_k?: number;
+  max_rank?: number;
   filters?: {
     sources?: string[];
     version?: string;
@@ -83,10 +84,12 @@ async function main(): Promise<void> {
     hit: boolean;
     rank: number | null;
     topK: number;
+    maxRank: number;
   }> = [];
 
   for (const fixture of fixtures) {
     const topK = fixture.top_k ?? 10;
+    const maxRank = fixture.max_rank ?? topK;
     const response = await searchDocsWithPolicy(
       db,
       {
@@ -109,9 +112,10 @@ async function main(): Promise<void> {
     rows.push({
       id: fixture.id,
       query: fixture.query,
-      hit: rank !== null,
+      hit: rank !== null && rank <= maxRank,
       rank,
       topK,
+      maxRank,
     });
   }
 
@@ -131,7 +135,7 @@ async function main(): Promise<void> {
     mrr: Number(mrr.toFixed(4)),
     failures: rows
       .filter((row) => !row.hit)
-      .map((row) => ({ id: row.id, query: row.query, top_k: row.topK })),
+      .map((row) => ({ id: row.id, query: row.query, top_k: row.topK, max_rank: row.maxRank, rank: row.rank })),
   };
 
   process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);

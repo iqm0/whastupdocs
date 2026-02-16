@@ -115,3 +115,43 @@ test("rerankHybridCandidates penalizes schema-heavy chunks and prefers actionabl
 
   assert.equal(response.results[0]?.chunk_id, "guide");
 });
+
+test("rerankHybridCandidates boosts setup sections for action-intent queries", () => {
+  const now = new Date().toISOString();
+  const response = rerankHybridCandidates(
+    "how to enable payment initiation in europe",
+    [
+      {
+        chunk_id: "logs",
+        score: 0,
+        text: "Dashboard logs for payment attempts and status history.",
+        heading_path: "Dashboard logs",
+        title: "Account - Activity, logs, and status",
+        url: "https://plaid.com/docs/account/activity",
+        source: "plaid",
+        version_tag: "latest",
+        last_changed_at: now,
+        ilike_score: 0.92,
+        fts_score: 0.9,
+        semantic_score: 0.65,
+      },
+      {
+        chunk_id: "setup",
+        score: 0,
+        text: "Create a Link token with payment_initiation and then authorize the payment.",
+        heading_path: "Quickstart",
+        title: "Payment Initiation setup guide",
+        url: "https://plaid.com/docs/payment-initiation",
+        source: "plaid",
+        version_tag: "latest",
+        last_changed_at: now,
+        ilike_score: 0.84,
+        fts_score: 0.82,
+        semantic_score: 0.7,
+      },
+    ],
+    2,
+  );
+
+  assert.equal(response.results[0]?.chunk_id, "setup");
+});
