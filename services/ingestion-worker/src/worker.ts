@@ -4,6 +4,7 @@ import { getSourceAdapter } from "./adapters/index.js";
 import type { IngestRunResult } from "./adapters/types.js";
 import { closeDbPool, getDbPool } from "./db.js";
 import { newId } from "./id.js";
+import { notifySlackChanges } from "./notifications.js";
 import { loadSourceRegistry } from "./registry.js";
 import type { SourceRegistryEntry } from "./registry.js";
 import { persistIngestRun } from "./store.js";
@@ -134,6 +135,15 @@ async function processSourceSync(
       `,
       [requestId, snapshotStatus === "failed" ? "failed" : "completed", ingestedAt, errorMessage],
     );
+
+    if (snapshotStatus !== "failed") {
+      try {
+        await notifySlackChanges(db, source, ingestedAt);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        process.stderr.write(`slack_notification_failed source=${source} reason=${message}\n`);
+      }
+    }
 
     process.stdout.write(
       `source=${source} docs_inserted=${stats.inserted_documents} docs_updated=${stats.updated_documents} chunks_inserted=${stats.inserted_chunks} change_events=${stats.change_events} status=${snapshotStatus}\n`,

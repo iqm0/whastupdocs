@@ -149,11 +149,28 @@ Retrieval evaluation:
 
 - GitHub Actions CI runs build + tests on push/PR: `.github/workflows/ci.yml`.
 - Optional docs risk gate runs when `WIUD_GATE_BASE_URL` is configured in repository secrets.
+- Optional retrieval quality gate runs against fixture queries when `WIUD_GATE_BASE_URL` is configured.
 - Manual run:
 
 ```bash
 node scripts/ci/doc-gate.mjs
+node scripts/ci/retrieval-gate.mjs
 ```
+
+Retrieval gate thresholds:
+
+- `WIUD_RETRIEVAL_GATE_MIN_HIT_AT_K` (default `0.65`)
+- `WIUD_RETRIEVAL_GATE_MIN_MRR` (default `0.50`)
+- `WIUD_RETRIEVAL_FIXTURES_PATH` (default `scripts/eval/retrieval-fixtures.json`)
+
+## Change Alerts
+
+- Ingestion worker can send Slack webhook alerts for detected change events.
+- Configure in `services/ingestion-worker/.env.example`:
+  - `WIUD_SLACK_CHANGE_WEBHOOK_URL`
+  - `WIUD_SLACK_CHANGE_MIN_SEVERITY`
+  - `WIUD_SLACK_CHANGE_INCLUDE_UPDATED`
+  - `WIUD_SLACK_CHANGE_MAX_EVENTS`
 
 ## License
 

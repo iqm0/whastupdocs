@@ -249,3 +249,25 @@ Teams need immediate migration/mitigation next steps, not only event labels.
 Impact:
 - `/v1/changes` now returns prescriptive action guidance per event.
 - MCP `list_changes` compact mode now surfaces top action hints for agent workflows.
+
+## 2026-02-16 - Retrieval quality regression gate in CI
+Decision:
+Add a fixture-based retrieval gate (`scripts/ci/retrieval-gate.mjs`) to CI that checks hit@k and MRR against configurable thresholds on the deployed API.
+
+Why:
+Without explicit quality thresholds, retrieval regressions can pass build/test and degrade answer reliability silently.
+
+Impact:
+- CI now supports a `retrieval-quality-gate` job.
+- Teams can enforce measurable retrieval quality before merge.
+
+## 2026-02-16 - Slack webhook alerts from ingestion worker
+Decision:
+Send batched Slack alerts for newly detected change events directly from ingestion runs, with severity and event-type filters.
+
+Why:
+Change intelligence only matters when teams see it in operational channels fast enough to act.
+
+Impact:
+- Optional Slack notifications are now available without adding a separate service.
+- Alert noise is constrained via min severity, include-updated toggle, and max event limits.

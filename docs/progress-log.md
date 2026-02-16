@@ -95,6 +95,14 @@
   - query API now returns `recommended_actions` for each change event
   - MCP compact `list_changes` payload includes top recommendation hints
   - added query-api and MCP tests for recommendation fields
+- Added retrieval quality CI gate script and workflow integration:
+  - `scripts/ci/retrieval-gate.mjs`
+  - `.github/workflows/ci.yml` job `retrieval-quality-gate`
+  - configurable threshold controls for hit@k and MRR
+- Added Slack change-alert delivery in ingestion worker:
+  - optional webhook notifier for change events per sync run
+  - severity and volume controls via env vars
+  - added notifier tests for filter/format behavior
 
 ### Validation snapshots
 

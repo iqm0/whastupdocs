@@ -169,7 +169,7 @@ WIUD_MCP_TRANSPORT=streamable-http WIUD_MCP_PORT=3001 npm run dev:mcp
 1. Run stack locally (`query-api`, `ingestion-worker`, `mcp-server`).
 2. Use an IDE/agent client configured with:
    - model provider: Ollama (`http://localhost:11434`)
-   - MCP server command: `npm run dev:mcp` in `/Users/igormoreira/code/wud` (for `stdio`)
+   - MCP server command: `npm run dev:mcp` from the repository root (for `stdio`)
    - or remote MCP URL: `https://wud-mcp-server-prod.fly.dev/mcp`
 3. Keep tool mode compact-first (`docs_preflight`, then `search_docs`/`answer_with_sources` as needed).
 
