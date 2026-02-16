@@ -63,6 +63,18 @@ function parseBearerToken(header: string | string[] | undefined): string | null 
   return token;
 }
 
+function parseCustomApiKey(headers: FastifyRequest['headers']): string | null {
+  const direct = headers["x-api-key"];
+  if (typeof direct === "string" && direct.trim()) {
+    return direct.trim();
+  }
+  const wiud = headers["x-wiud-api-key"];
+  if (typeof wiud === "string" && wiud.trim()) {
+    return wiud.trim();
+  }
+  return null;
+}
+
 function shouldRequireAuth(configuredAuthKeys: Set<string>): boolean {
   const explicit = (process.env.WIUD_REQUIRE_AUTH ?? "").trim().toLowerCase();
   if (explicit === "true") {
@@ -102,7 +114,10 @@ export function authorizeRequest(request: FastifyRequest): AuthResolution {
   const tenantMap = parseApiKeyTenantMap();
   const allowed = new Set<string>([...apiKeys, ...Object.keys(tenantMap)]);
   const requireAuth = shouldRequireAuth(allowed);
-  const token = parseBearerToken(request.headers.authorization);
+  let token = parseBearerToken(request.headers.authorization);
+  if (!token) {
+    token = parseCustomApiKey(request.headers);
+  }
 
   if (!requireAuth) {
     if (!token) {

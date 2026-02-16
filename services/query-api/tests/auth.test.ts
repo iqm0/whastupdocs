@@ -54,6 +54,22 @@ test("health accepts valid bearer token when WIUD_API_KEYS is configured", async
   assert.equal(response.statusCode, 200);
 });
 
+test("health accepts x-api-key header when WIUD_API_KEYS is configured", async () => {
+  const prev = process.env.WIUD_API_KEYS;
+  process.env.WIUD_API_KEYS = "abc";
+  const app = await buildApp({ logger: false });
+  const response = await app.inject({
+    method: "GET",
+    url: "/health",
+    headers: {
+      "x-api-key": "abc",
+    },
+  });
+  await app.close();
+  process.env.WIUD_API_KEYS = prev;
+  assert.equal(response.statusCode, 200);
+});
+
 test("production mode fails closed without api keys unless WIUD_ALLOW_ANONYMOUS=true", async () => {
   const previousKeys = process.env.WIUD_API_KEYS;
   const previousNodeEnv = process.env.NODE_ENV;
