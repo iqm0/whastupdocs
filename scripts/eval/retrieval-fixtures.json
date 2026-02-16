@@ -71,6 +71,35 @@
         "source": "plaid",
         "url_contains": "/payment-initiation/payment-initiation-one-time/add-to-app"
       }
+    },
+    {
+      "id": "stripe-checkout-webhooks-verify",
+      "query": "verify webhook signature for stripe checkout events",
+      "top_k": 8,
+      "max_rank": 3,
+      "filters": {
+        "sources": ["stripe"],
+        "version": "latest"
+      },
+      "expected": {
+        "source": "stripe",
+        "url_contains": "/docs/webhooks"
+      }
+    },
+    {
+      "id": "plaid-open-banking-payment-initiation",
+      "query": "plaid open banking payment initiation eu uk",
+      "top_k": 8,
+      "max_rank": 3,
+      "filters": {
+        "sources": ["plaid"],
+        "version": "latest",
+        "region": "eu"
+      },
+      "expected": {
+        "source": "plaid",
+        "url_contains": "/payment-initiation"
+      }
     }
   ]
 }

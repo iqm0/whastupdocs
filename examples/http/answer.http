@@ -1,0 +1,9 @@
+### Answer with sources
+POST http://localhost:8080/v1/answer
+content-type: application/json
+
+{
+  "question": "How do I use reasoning models?",
+  "filters": { "sources": ["openai"] }
+}
+

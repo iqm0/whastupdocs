@@ -8,6 +8,12 @@ It continuously ingests official developer documentation and changelogs, indexes
 - Slack app commands and mentions
 - IDE integrations (starting with VS Code)
 
+## Choose Your Path
+
+- Hobbyist/Solo: see `docs/local-testing.md` for a lightweight local setup, sample queries, and optional embeddings with OpenAI or Ollama.
+- Managed Cloud: see `docs/managed-cloud.md` to use our hosted API/MCP without running infrastructure.
+- Self‑Hosting (Enterprise): see `docs/self-hosting.md` for architecture, sizing, security, and deployment options (plus Fly runbook in `docs/fly-deployment.md`).
+
 ## Repository Layout
 
 - `docs/implementation-plan.md`: product + engineering implementation plan
@@ -22,7 +28,7 @@ It continuously ingests official developer documentation and changelogs, indexes
 - `services/mcp-server/`: TypeScript MCP server skeleton (`search_docs`, `answer_with_sources`, `check_freshness`)
 - `services/ingestion-worker/`: queue consumer for source sync jobs
 - `config/source-registry.json`: curated source definitions used by ingestion worker
-- `docker-compose.yml`: local dependencies (Postgres, Redis, OpenSearch)
+- `docker-compose.yml`: local dependencies (Postgres, Redis). Note: OpenSearch is not required for current search; PostgreSQL FTS + optional embeddings are used.
 - `scripts/run-migrations.sh`: migration runner
 
 ## Quick Start (Local Dev)
@@ -97,7 +103,7 @@ Environment variables:
 
 ## Current Status
 
-This is an early but working baseline. The `query-api` reads from PostgreSQL, supports queue-backed source sync, and uses hybrid retrieval (lexical + full-text + intent + optional semantic embeddings). The ingestion worker includes adapters for OpenAI, Next.js, Stripe, and React (fetch -> extract -> chunk -> persist) and can optionally persist chunk embeddings for semantic rank fusion. Slack runtime and IDE runtime remain open milestones.
+This is an early but working baseline. The `query-api` reads from PostgreSQL, supports queue-backed source sync, and uses hybrid retrieval (lexical + full‑text + intent + optional semantic embeddings). The ingestion worker includes adapters for OpenAI, Next.js, Stripe, and React (fetch → extract → chunk → persist) and can optionally persist chunk embeddings for semantic rank fusion. Slack runtime is available behind flags, and the IDE/agent path is served via the MCP server.
 
 The source sync flow is now queue-backed:
 
@@ -207,9 +213,9 @@ This repository is distributed under the `What Is Up, Docs Community License v1.
 
 ## Deployment Modes
 
-- Local-first mode: run API + worker + MCP server on your machine.
-- Cloud mode: deploy `query-api` and `ingestion-worker` to Fly; run MCP locally and point it to cloud API.
-- Hosted MCP mode: deploy `mcp-server` with `WIUD_MCP_TRANSPORT=streamable-http` and expose `/mcp` for enterprise-managed clients.
-- Hybrid local-LLM mode: pair local Ollama model with local MCP + local or cloud backend API.
+- Local-first mode: run API + worker + MCP server on your machine. See `docs/local-testing.md`.
+- Managed cloud consumption: use a hosted API and optional hosted MCP provided by the platform; point local tools to the assigned base URL. See `docs/managed-cloud.md`.
+- Self-hosting: operate the API, worker, and optionally MCP in your own cloud. See `docs/self-hosting.md` and the Fly example in `docs/fly-deployment.md`.
+- Hybrid local‑LLM mode: pair local Ollama with local MCP + local or cloud backend API.
 
 See `docs/fly-deployment.md` for concrete Fly commands.

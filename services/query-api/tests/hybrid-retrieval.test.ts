@@ -155,3 +155,74 @@ test("rerankHybridCandidates boosts setup sections for action-intent queries", (
 
   assert.equal(response.results[0]?.chunk_id, "setup");
 });
+
+test("rerankHybridCandidates boosts Plaid payment initiation and Stripe webhook docs", () => {
+  const now = new Date().toISOString();
+  const plaid = rerankHybridCandidates(
+    "plaid open banking payment initiation eu",
+    [
+      {
+        chunk_id: "plaid-ref",
+        score: 0,
+        text: "payment initiation reference fields and schema",
+        title: "API Reference - Payment Initiation",
+        url: "https://plaid.com/docs/api/payment-initiation",
+        source: "plaid",
+        version_tag: "latest",
+        last_changed_at: now,
+        ilike_score: 0.9,
+        fts_score: 0.88,
+        semantic_score: 0.6,
+      },
+      {
+        chunk_id: "plaid-guide",
+        score: 0,
+        text: "Create a Link token with payment_initiation and authorize the payment.",
+        title: "Payment Initiation setup guide",
+        url: "https://plaid.com/docs/payment-initiation",
+        source: "plaid",
+        version_tag: "latest",
+        last_changed_at: now,
+        ilike_score: 0.85,
+        fts_score: 0.8,
+        semantic_score: 0.72,
+      },
+    ],
+    2,
+  );
+  assert.equal(plaid.results[0]?.chunk_id, "plaid-guide");
+
+  const stripe = rerankHybridCandidates(
+    "verify stripe webhook signature",
+    [
+      {
+        chunk_id: "stripe-general",
+        score: 0,
+        text: "Stripe API overview",
+        title: "Stripe Overview",
+        url: "https://docs.stripe.com/overview",
+        source: "stripe",
+        version_tag: "latest",
+        last_changed_at: now,
+        ilike_score: 0.7,
+        fts_score: 0.65,
+        semantic_score: 0.55,
+      },
+      {
+        chunk_id: "stripe-webhooks",
+        score: 0,
+        text: "Verify the webhook signature using your endpoint secret.",
+        title: "Webhooks - Verify signatures",
+        url: "https://docs.stripe.com/webhooks/signatures",
+        source: "stripe",
+        version_tag: "latest",
+        last_changed_at: now,
+        ilike_score: 0.8,
+        fts_score: 0.8,
+        semantic_score: 0.9,
+      },
+    ],
+    2,
+  );
+  assert.equal(stripe.results[0]?.chunk_id, "stripe-webhooks");
+});

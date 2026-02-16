@@ -14,6 +14,12 @@ const QUERY_EXPANSIONS: Record<string, string[]> = {
   reasoning: ["reasoning models", "deliberate", "chain"],
   migration: ["upgrade", "deprecation", "breaking change"],
   retry: ["backoff", "idempotency", "timeout"],
+  plaid: ["link", "link token", "products", "payment initiation", "open banking"],
+  stripe: ["payment intents", "webhooks", "endpoint secret", "checkout"],
+  "payment": ["initiation", "intent", "mandate", "consent", "sepa", "pis", "open banking"],
+  "open": ["open banking", "open-banking"],
+  "banking": ["open banking", "open-banking"],
+  europe: ["eu", "uk", "sepa"],
 };
 
 const STOPWORDS = new Set([
@@ -147,6 +153,14 @@ function computeSectionTypeScore(item: SearchResult, query: string): number {
 
   if (/\b(dashboard|activity|logs?|errors?|status|reference|schema)\b/.test(context)) {
     score -= 0.3;
+  }
+
+  // Domain-specific boosts for Plaid payment initiation and Open Banking guides.
+  if (/plaid\.com\/.+\b(payment-initiation|open-banking)\b/.test(item.url.toLowerCase())) {
+    score += 0.15;
+  }
+  if (/stripe\.com\/.+\b(webhooks|payment-intents|checkout)\b/.test(item.url.toLowerCase())) {
+    score += 0.1;
   }
 
   return Math.max(0, Math.min(1, score));
