@@ -45,12 +45,26 @@ jobs:
   docs-risk-gate:
     runs-on: ubuntu-latest
     needs: quality
-    if: ${{ secrets.WIUD_GATE_BASE_URL != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check docs gate configuration
+        id: guard
+        env:
+          WIUD_GATE_BASE_URL: ${{ secrets.WIUD_GATE_BASE_URL }}
+          WIUD_GATE_API_KEY: ${{ secrets.WIUD_GATE_API_KEY }}
+          WIUD_GATE_TENANT_ID: ${{ secrets.WIUD_GATE_TENANT_ID }}
+        run: |
+          if [ -n "$WIUD_GATE_BASE_URL" ] && [ -n "$WIUD_GATE_API_KEY" ] && [ -n "$WIUD_GATE_TENANT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping docs risk gate: required secrets are not fully configured."
+          fi
+
       - name: Run docs risk gate
+        if: ${{ steps.guard.outputs.enabled == 'true' }}
         env:
           WIUD_GATE_BASE_URL: ${{ secrets.WIUD_GATE_BASE_URL }}
           WIUD_GATE_API_KEY: ${{ secrets.WIUD_GATE_API_KEY }}
@@ -63,12 +77,26 @@ jobs:
   retrieval-quality-gate:
     runs-on: ubuntu-latest
     needs: quality
-    if: ${{ secrets.WIUD_GATE_BASE_URL != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check retrieval gate configuration
+        id: guard
+        env:
+          WIUD_GATE_BASE_URL: ${{ secrets.WIUD_GATE_BASE_URL }}
+          WIUD_GATE_API_KEY: ${{ secrets.WIUD_GATE_API_KEY }}
+          WIUD_GATE_TENANT_ID: ${{ secrets.WIUD_GATE_TENANT_ID }}
+        run: |
+          if [ -n "$WIUD_GATE_BASE_URL" ] && [ -n "$WIUD_GATE_API_KEY" ] && [ -n "$WIUD_GATE_TENANT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping retrieval quality gate: required secrets are not fully configured."
+          fi
+
       - name: Run retrieval quality gate
+        if: ${{ steps.guard.outputs.enabled == 'true' }}
         env:
           WIUD_GATE_BASE_URL: ${{ secrets.WIUD_GATE_BASE_URL }}
           WIUD_GATE_API_KEY: ${{ secrets.WIUD_GATE_API_KEY }}

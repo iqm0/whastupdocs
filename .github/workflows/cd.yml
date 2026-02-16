@@ -73,7 +73,7 @@ jobs:
   deploy-query-api-staging:
     runs-on: ubuntu-latest
     needs: [quality, detect-changes]
-    if: ${{ secrets.FLY_API_TOKEN != '' && vars.FLY_STAGING_QUERY_API_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.query_api == 'true') }}
+    if: ${{ vars.FLY_STAGING_QUERY_API_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.query_api == 'true') }}
     environment: staging
     steps:
       - name: Checkout
@@ -107,7 +107,7 @@ jobs:
   deploy-query-api-production:
     runs-on: ubuntu-latest
     needs: [quality, detect-changes, deploy-query-api-staging]
-    if: ${{ secrets.FLY_API_TOKEN != '' && vars.FLY_PROD_QUERY_API_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.query_api == 'true') }}
+    if: ${{ vars.FLY_PROD_QUERY_API_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.query_api == 'true') }}
     environment: production
     steps:
       - name: Checkout
@@ -124,7 +124,7 @@ jobs:
   deploy-ingestion-worker-staging:
     runs-on: ubuntu-latest
     needs: [quality, detect-changes]
-    if: ${{ secrets.FLY_API_TOKEN != '' && vars.FLY_STAGING_INGESTION_WORKER_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.ingestion_worker == 'true') }}
+    if: ${{ vars.FLY_STAGING_INGESTION_WORKER_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.ingestion_worker == 'true') }}
     environment: staging
     steps:
       - name: Checkout
@@ -150,7 +150,7 @@ jobs:
   deploy-ingestion-worker-production:
     runs-on: ubuntu-latest
     needs: [quality, detect-changes, deploy-ingestion-worker-staging]
-    if: ${{ secrets.FLY_API_TOKEN != '' && vars.FLY_PROD_INGESTION_WORKER_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.ingestion_worker == 'true') }}
+    if: ${{ vars.FLY_PROD_INGESTION_WORKER_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.ingestion_worker == 'true') }}
     environment: production
     steps:
       - name: Checkout
@@ -167,7 +167,7 @@ jobs:
   deploy-mcp-server-staging:
     runs-on: ubuntu-latest
     needs: [quality, detect-changes]
-    if: ${{ secrets.FLY_API_TOKEN != '' && vars.FLY_STAGING_MCP_SERVER_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.mcp_server == 'true') }}
+    if: ${{ vars.FLY_STAGING_MCP_SERVER_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.mcp_server == 'true') }}
     environment: staging
     steps:
       - name: Checkout
@@ -201,7 +201,7 @@ jobs:
   deploy-mcp-server-production:
     runs-on: ubuntu-latest
     needs: [quality, detect-changes, deploy-mcp-server-staging]
-    if: ${{ secrets.FLY_API_TOKEN != '' && vars.FLY_PROD_MCP_SERVER_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.mcp_server == 'true') }}
+    if: ${{ vars.FLY_PROD_MCP_SERVER_APP != '' && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.mcp_server == 'true') }}
     environment: production
     steps:
       - name: Checkout
