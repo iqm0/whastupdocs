@@ -1,0 +1,10 @@
+### Search docs
+POST http://localhost:8080/v1/search
+content-type: application/json
+
+{
+  "query": "payment initiation setup",
+  "top_k": 5,
+  "filters": { "sources": ["openai", "stripe"] }
+}
+
