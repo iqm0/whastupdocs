@@ -1,0 +1,54 @@
+name: Post-Deploy Sync and Gate
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  sync-and-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sync sources (Plaid/Stripe/OpenBanking-UK/MDN-HTTP)
+        env:
+          BASE: ${{ vars.WIUD_GATE_BASE_URL || 'https://wud-query-api-prod.fly.dev' }}
+          KEY: ${{ secrets.WIUD_GATE_API_KEY }}
+        run: |
+          curl -sS -X POST "$BASE/v1/sources/sync" -H 'content-type: application/json' -H "x-api-key: $KEY" -d '{"source":"plaid"}' || true
+          curl -sS -X POST "$BASE/v1/sources/sync" -H 'content-type: application/json' -H "x-api-key: $KEY" -d '{"source":"stripe"}' || true
+          curl -sS -X POST "$BASE/v1/sources/sync" -H 'content-type: application/json' -H "x-api-key: $KEY" -d '{"source":"openbanking-uk"}' || true
+          curl -sS -X POST "$BASE/v1/sources/sync" -H 'content-type: application/json' -H "x-api-key: $KEY" -d '{"source":"mdn-http"}' || true
+
+      - name: Wait for ingestion window
+        run: |
+          sleep 90
+
+      - name: Run retrieval gate
+        env:
+          WIUD_GATE_BASE_URL: ${{ vars.WIUD_GATE_BASE_URL || 'https://wud-query-api-prod.fly.dev' }}
+          WIUD_GATE_API_KEY: ${{ secrets.WIUD_GATE_API_KEY }}
+          WIUD_RETRIEVAL_FIXTURES_PATH: scripts/eval/retrieval-fixtures.json
+          WIUD_RETRIEVAL_GATE_REQUIRE_ALL_SOURCES: 'false'
+        run: |
+          node scripts/ci/retrieval-gate.mjs | tee gate.json
+
+      - name: Post to Slack on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          test -n "$SLACK_WEBHOOK_URL" || exit 0
+          summary=$(jq -c '{hit_at_k, mrr, failed_cases, skipped_fixtures}' gate.json || echo '{}')
+          curl -sS -X POST "$SLACK_WEBHOOK_URL" -H 'content-type: application/json' \
+            -d "{\"text\":\"[what-is-up, docs] Retrieval gate FAILED (post-deploy)\\n\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Retrieval gate failed* (post-deploy)\\n\"}},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"\`$summary\`\"}}]}"
+
