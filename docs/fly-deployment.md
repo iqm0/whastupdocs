@@ -162,6 +162,54 @@ To run local MCP in hosted-compatible mode:
 WIUD_MCP_TRANSPORT=streamable-http WIUD_MCP_PORT=3001 npm run dev:mcp
 ```
 
+## 8) Slack onboarding and webhook verification
+
+Set Slack webhook secrets on Fly:
+
+```bash
+fly secrets set \
+  WIUD_SLACK_CHANGE_WEBHOOK_URL='https://hooks.slack.com/services/T000/B000/XXX' \
+  --app wud-query-api-prod
+
+fly secrets set \
+  WIUD_SLACK_CHANGE_WEBHOOK_URL='https://hooks.slack.com/services/T000/B000/XXX' \
+  WIUD_SLACK_CHANGE_MIN_SEVERITY='medium' \
+  WIUD_SLACK_CHANGE_INCLUDE_UPDATED='false' \
+  WIUD_SLACK_CHANGE_MAX_EVENTS='8' \
+  --app wud-ingestion-worker-prod
+```
+
+Trigger onboarding test via API endpoint:
+
+```bash
+curl -sS -X POST https://wud-query-api-prod.fly.dev/v1/alerts/slack/test \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <WIUD_API_KEYS token>' \
+  -d '{"source":"slack-onboarding"}'
+```
+
+Optional webhook override for test calls (disabled by default):
+
+```bash
+fly secrets set WIUD_ALLOW_TEST_WEBHOOK_OVERRIDE='true' --app wud-query-api-prod
+```
+
+Then:
+
+```bash
+curl -sS -X POST https://wud-query-api-prod.fly.dev/v1/alerts/slack/test \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <WIUD_API_KEYS token>' \
+  -d '{"source":"slack-onboarding","webhook_url":"https://hooks.slack.com/services/T000/B000/YYY"}'
+```
+
+Local operator CLI test:
+
+```bash
+WIUD_SLACK_CHANGE_WEBHOOK_URL='https://hooks.slack.com/services/T000/B000/XXX' \
+npm run slack:test -- --source slack-onboarding
+```
+
 ## Local LLM + Ollama mode
 
 `what is up, docs` does retrieval/freshness/change intelligence. You can pair it with a local model via any MCP-compatible client:

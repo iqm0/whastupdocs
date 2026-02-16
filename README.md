@@ -166,6 +166,7 @@ Retrieval gate thresholds:
 ## Change Alerts
 
 - Ingestion worker can send Slack webhook alerts for detected change events.
+- Fly onboarding/runbook commands: see `docs/fly-deployment.md` section "Slack onboarding and webhook verification".
 - Configure in `services/ingestion-worker/.env.example`:
   - `WIUD_SLACK_CHANGE_WEBHOOK_URL`
   - `WIUD_SLACK_CHANGE_MIN_SEVERITY`
