@@ -1,0 +1,24 @@
+{
+  "name": "@wiud/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server for what is up, docs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "start:http": "WIUD_MCP_TRANSPORT=streamable-http node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "dev:http": "WIUD_MCP_TRANSPORT=streamable-http tsx src/index.ts",
+    "test": "node --test --import tsx tests/**/*.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,18 @@
+app = "wud-query-api"
+primary_region = "dfw"
+
+[env]
+NODE_ENV = "production"
+PORT = "8080"
+LOG_LEVEL = "info"
+
+[deploy]
+release_command = "npm --workspace @wiud/query-api run migrate"
+
+[http_service]
+internal_port = 8080
+force_https = true
+auto_stop_machines = "stop"
+auto_start_machines = true
+min_machines_running = 0
+processes = ["app"]

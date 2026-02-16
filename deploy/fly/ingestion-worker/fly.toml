@@ -1,0 +1,15 @@
+app = "wud-ingestion-worker"
+primary_region = "dfw"
+
+[env]
+NODE_ENV = "production"
+LOG_LEVEL = "info"
+SOURCE_REGISTRY_PATH = "config/source-registry.json"
+MAX_INGEST_PAGES = "20"
+INGEST_TIMEOUT_MS = "10000"
+MAX_CRAWL_DEPTH = "1"
+FETCH_RETRIES = "2"
+RETRY_BACKOFF_MS = "500"
+
+[processes]
+app = "node services/ingestion-worker/dist/worker.js"

@@ -1,0 +1,16 @@
+app = "wud-mcp-server"
+primary_region = "dfw"
+
+[env]
+NODE_ENV = "production"
+WIUD_MCP_TRANSPORT = "streamable-http"
+WIUD_MCP_PORT = "3001"
+WIUD_MCP_PATH = "/mcp"
+
+[http_service]
+internal_port = 3001
+force_https = true
+auto_stop_machines = "stop"
+auto_start_machines = true
+min_machines_running = 0
+processes = ["app"]

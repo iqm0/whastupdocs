@@ -1,0 +1,19 @@
+{
+  "name": "what-is-up-docs",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "services/*"
+  ],
+  "scripts": {
+    "dev:query-api": "npm --workspace @wiud/query-api run dev",
+    "dev:mcp": "npm --workspace @wiud/mcp-server run dev",
+    "dev:mcp:http": "WIUD_MCP_TRANSPORT=streamable-http npm --workspace @wiud/mcp-server run dev",
+    "dev:ingestion-worker": "npm --workspace @wiud/ingestion-worker run dev",
+    "build": "npm -ws run build",
+    "test": "npm -ws run test --if-present",
+    "db:migrate": "./scripts/run-migrations.sh",
+    "infra:up": "./scripts/infra-up.sh",
+    "infra:down": "./scripts/infra-down.sh"
+  }
+}

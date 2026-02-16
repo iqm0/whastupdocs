@@ -1,0 +1,405 @@
+openapi: 3.1.0
+info:
+  title: what is up, docs API
+  version: 0.1.0
+  description: API contract for docs search, grounded answers, and source freshness.
+servers:
+  - url: https://api.whatisupdocs.com
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+paths:
+  /v1/search:
+    post:
+      summary: Search documentation snippets
+      operationId: searchDocs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/answer:
+    post:
+      summary: Generate grounded answer with citations
+      operationId: answerWithSources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnswerRequest'
+      responses:
+        '200':
+          description: Grounded answer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnswerResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/sources:
+    get:
+      summary: List source health and freshness
+      operationId: listSources
+      responses:
+        '200':
+          description: Source health list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSourcesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/sources/sync:
+    post:
+      summary: Trigger immediate source sync
+      operationId: triggerSourceSync
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceSyncRequest'
+      responses:
+        '202':
+          description: Sync accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSyncResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/changes:
+    get:
+      summary: List detected documentation changes
+      operationId: listChanges
+      parameters:
+        - in: query
+          name: source
+          schema:
+            type: string
+        - in: query
+          name: event_type
+          schema:
+            type: string
+            enum: [document_added, updated, deprecation, breaking_change]
+        - in: query
+          name: severity
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Change events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListChangesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    SearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 2
+        filters:
+          $ref: '#/components/schemas/QueryFilters'
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+    QueryFilters:
+      type: object
+      properties:
+        sources:
+          type: array
+          items:
+            type: string
+        version:
+          type: string
+          description: e.g. latest, 14, 3.0
+        updated_after:
+          type: string
+          format: date-time
+        language:
+          type: string
+          description: content language filter
+        region:
+          type: string
+          description: region context (e.g. us, eu, uk)
+        plan:
+          type: string
+          description: product or API plan context
+        deployment_type:
+          type: string
+          description: deployment mode context (e.g. cloud, self-hosted)
+        cloud:
+          type: string
+          description: cloud provider context (e.g. aws, gcp, azure)
+        reference_date:
+          type: string
+          format: date-time
+          description: answer as-of date context
+    SearchResult:
+      type: object
+      required:
+        - chunk_id
+        - score
+        - text
+        - title
+        - url
+        - source
+        - last_changed_at
+      properties:
+        chunk_id:
+          type: string
+        score:
+          type: number
+        text:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        source:
+          type: string
+        version_tag:
+          type: string
+          nullable: true
+        last_changed_at:
+          type: string
+          format: date-time
+    SearchResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+    AnswerRequest:
+      type: object
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 3
+        filters:
+          $ref: '#/components/schemas/QueryFilters'
+        style:
+          type: string
+          enum: [concise, detailed]
+          default: concise
+        max_citations:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+    Citation:
+      type: object
+      required: [title, url, source, last_changed_at]
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        source:
+          type: string
+        version_tag:
+          type: string
+          nullable: true
+        last_changed_at:
+          type: string
+          format: date-time
+    FreshnessSummary:
+      type: object
+      required: [generated_at, max_source_age_minutes]
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        max_source_age_minutes:
+          type: integer
+          minimum: 0
+    DecisionEnvelope:
+      type: object
+      required: [status, confidence, uncertainties, policy_flags, actionability]
+      properties:
+        status:
+          type: string
+          enum: [grounded, insufficient_sources, stale_sources, conflict_detected, unsafe_content]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        uncertainties:
+          type: array
+          items:
+            type: string
+        policy_flags:
+          type: array
+          items:
+            type: string
+        actionability:
+          type: object
+          required: [recommended_next_steps]
+          properties:
+            recommended_next_steps:
+              type: array
+              items:
+                type: string
+    AnswerResponse:
+      type: object
+      required: [answer, citations, freshness, warnings, decision]
+      properties:
+        answer:
+          type: string
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+        freshness:
+          $ref: '#/components/schemas/FreshnessSummary'
+        warnings:
+          type: array
+          items:
+            type: string
+        decision:
+          $ref: '#/components/schemas/DecisionEnvelope'
+    SourceStatus:
+      type: object
+      required: [source, status, last_sync_at, lag_minutes]
+      properties:
+        source:
+          type: string
+        status:
+          type: string
+          enum: [healthy, degraded, failing]
+        last_sync_at:
+          type: string
+          format: date-time
+        lag_minutes:
+          type: integer
+          minimum: 0
+        error:
+          type: string
+          nullable: true
+    ListSourcesResponse:
+      type: object
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceStatus'
+    SourceSyncRequest:
+      type: object
+      required: [source]
+      properties:
+        source:
+          type: string
+    SourceSyncResponse:
+      type: object
+      required: [accepted, source, requested_at]
+      properties:
+        accepted:
+          type: boolean
+        source:
+          type: string
+        requested_at:
+          type: string
+          format: date-time
+    ChangeEvent:
+      type: object
+      required: [id, source, canonical_url, title, event_type, severity, summary, details, detected_at]
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        canonical_url:
+          type: string
+          format: uri
+        title:
+          type: string
+        event_type:
+          type: string
+          enum: [document_added, updated, deprecation, breaking_change]
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        summary:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        detected_at:
+          type: string
+          format: date-time
+    ListChangesResponse:
+      type: object
+      required: [changes]
+      properties:
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeEvent'
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+  responses:
+    BadRequest:
+      description: Invalid request payload
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Invalid or missing credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+security:
+  - bearerAuth: []

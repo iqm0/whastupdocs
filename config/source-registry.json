@@ -1,0 +1,58 @@
+[
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "kind": "api_ref",
+    "base_url": "https://platform.openai.com/docs",
+    "sitemap_url": "https://platform.openai.com/sitemap.xml",
+    "seed_urls": [
+      "https://platform.openai.com/docs/overview",
+      "https://platform.openai.com/docs/guides/text",
+      "https://platform.openai.com/docs/guides/reasoning",
+      "https://platform.openai.com/docs/guides/tools"
+    ],
+    "trust_score": 1.0,
+    "poll_interval_minutes": 30
+  },
+  {
+    "id": "nextjs",
+    "name": "Next.js",
+    "kind": "docs",
+    "base_url": "https://nextjs.org/docs",
+    "sitemap_url": "https://nextjs.org/sitemap.xml",
+    "seed_urls": [
+      "https://nextjs.org/docs",
+      "https://nextjs.org/docs/app/getting-started/installation",
+      "https://nextjs.org/docs/pages/building-your-application/routing"
+    ],
+    "trust_score": 1.0,
+    "poll_interval_minutes": 60
+  },
+  {
+    "id": "stripe",
+    "name": "Stripe",
+    "kind": "api_ref",
+    "base_url": "https://docs.stripe.com",
+    "sitemap_url": "https://docs.stripe.com/sitemap.xml",
+    "seed_urls": [
+      "https://docs.stripe.com/api",
+      "https://docs.stripe.com/payments",
+      "https://docs.stripe.com/webhooks"
+    ],
+    "trust_score": 1.0,
+    "poll_interval_minutes": 60
+  },
+  {
+    "id": "react",
+    "name": "React",
+    "kind": "docs",
+    "base_url": "https://react.dev/reference",
+    "seed_urls": [
+      "https://react.dev/reference/react",
+      "https://react.dev/reference/react-dom",
+      "https://react.dev/reference/react/useState"
+    ],
+    "trust_score": 1.0,
+    "poll_interval_minutes": 60
+  }
+]
