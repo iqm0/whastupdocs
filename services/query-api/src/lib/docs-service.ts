@@ -340,8 +340,15 @@ export async function searchDocsWithPolicy(
 
   const whereSql =
     where.length > 0
-      ? `WHERE ${where.join(" AND ")} AND (c.text ILIKE $${likeIndex} OR d.title ILIKE $${likeIndex})`
-      : `WHERE c.text ILIKE $${likeIndex} OR d.title ILIKE $${likeIndex}`;
+      ? `WHERE ${where.join(" AND ")} AND (
+          c.text ILIKE $${likeIndex}
+          OR d.title ILIKE $${likeIndex}
+          OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${plainQueryIndex})
+        )`
+      : `WHERE
+          c.text ILIKE $${likeIndex}
+          OR d.title ILIKE $${likeIndex}
+          OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${plainQueryIndex})`;
 
   const sql = `
     SELECT
