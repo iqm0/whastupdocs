@@ -5,6 +5,8 @@ import { ingestReactDocs } from "./react.js";
 import { ingestStripeDocs } from "./stripe.js";
 import { ingestOpenBankingUkDocs } from "./openbanking_uk.js";
 import { ingestMdnHttpDocs } from "./mdn_http.js";
+import { ingestOktaDocs } from "./okta.js";
+import { ingestAwsIamDocs } from "./aws_iam.js";
 import type { SourceAdapter } from "./types.js";
 
 const adapters: Record<string, SourceAdapter> = {
@@ -15,6 +17,8 @@ const adapters: Record<string, SourceAdapter> = {
   react: ingestReactDocs,
   "openbanking-uk": ingestOpenBankingUkDocs,
   "mdn-http": ingestMdnHttpDocs,
+  okta: ingestOktaDocs,
+  "aws-iam": ingestAwsIamDocs,
 };
 
 export function getSourceAdapter(sourceId: string): SourceAdapter | undefined {

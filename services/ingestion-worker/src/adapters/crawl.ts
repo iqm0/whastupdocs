@@ -154,6 +154,16 @@ export function extractMainHtml(html: string): string {
     return mainMatch[1];
   }
 
+  const roleMain = html.match(/<div[^>]*(\srole=["']main["'][^>]*)>([\s\S]*?)<\/div>/i);
+  if (roleMain?.[2]) {
+    return roleMain[2];
+  }
+
+  const idContent = html.match(/<div[^>]*(\sid=("|')(content|main-content|docs-content)\2[^>]*)>([\s\S]*?)<\/div>/i);
+  if (idContent?.[4]) {
+    return idContent[4];
+  }
+
   const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
   if (articleMatch?.[1]) {
     return articleMatch[1];

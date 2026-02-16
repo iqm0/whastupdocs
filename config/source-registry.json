@@ -14,6 +14,31 @@
     "poll_interval_minutes": 30
   },
   {
+    "id": "okta",
+    "name": "Okta",
+    "kind": "docs",
+    "base_url": "https://developer.okta.com",
+    "seed_urls": [
+      "https://developer.okta.com/docs/",
+      "https://developer.okta.com/docs/reference/",
+      "https://developer.okta.com/docs/guides/"
+    ],
+    "trust_score": 0.9,
+    "poll_interval_minutes": 180
+  },
+  {
+    "id": "aws-iam",
+    "name": "AWS IAM",
+    "kind": "docs",
+    "base_url": "https://docs.aws.amazon.com",
+    "seed_urls": [
+      "https://docs.aws.amazon.com/iam/latest/UserGuide/introduction.html",
+      "https://docs.aws.amazon.com/iam/latest/UserGuide/access_policies.html"
+    ],
+    "trust_score": 0.9,
+    "poll_interval_minutes": 360
+  },
+  {
     "id": "mdn-http",
     "name": "MDN HTTP",
     "kind": "docs",
