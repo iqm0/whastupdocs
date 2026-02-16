@@ -47,3 +47,9 @@ export const ListChangesQuerySchema = z
     limit: z.coerce.number().int().min(1).max(100).optional(),
   })
   .strict();
+
+export const TelemetryQuerySchema = z
+  .object({
+    days: z.coerce.number().int().min(1).max(90).optional(),
+  })
+  .strict();

@@ -18,7 +18,7 @@ This supports:
 
 - Fly account and `flyctl` installed.
 - Postgres and Redis URLs available (Fly managed or external).
-- Repo checked out locally at `/Users/igormoreira/code/wud`.
+- Repo checked out locally.
 
 ## 1) Create apps
 
@@ -31,9 +31,9 @@ fly apps create wud-mcp-server-prod
 ```
 
 Update:
-- `/Users/igormoreira/code/wud/deploy/fly/query-api/fly.toml`
-- `/Users/igormoreira/code/wud/deploy/fly/ingestion-worker/fly.toml`
-- `/Users/igormoreira/code/wud/deploy/fly/mcp-server/fly.toml`
+- `deploy/fly/query-api/fly.toml`
+- `deploy/fly/ingestion-worker/fly.toml`
+- `deploy/fly/mcp-server/fly.toml`
 
 Set `app = "<your-app-name>"` in each file.
 
@@ -45,6 +45,7 @@ Set the same database and redis URLs on both apps:
 fly secrets set \
   DATABASE_URL='postgres://...' \
   REDIS_URL='redis://...' \
+  WIUD_API_KEYS='replace-with-strong-api-key' \
   --app wud-query-api-prod
 
 fly secrets set \
@@ -53,11 +54,20 @@ fly secrets set \
   --app wud-ingestion-worker-prod
 ```
 
+Optional tenant policy controls on query API:
+
+```bash
+fly secrets set \
+  WIUD_TENANT_POLICIES_JSON='{"default":{"allow_sources":["openai","stripe"],"min_trust_score":0.8}}' \
+  --app wud-query-api-prod
+```
+
 Set backend URL for hosted MCP:
 
 ```bash
 fly secrets set \
   WIUD_BACKEND_URL='https://wud-query-api-prod.fly.dev' \
+  WIUD_MCP_API_KEYS='replace-with-strong-mcp-key' \
   --app wud-mcp-server-prod
 ```
 

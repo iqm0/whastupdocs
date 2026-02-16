@@ -71,3 +71,26 @@ test("answerQuestion excludes unsafe result when safe evidence is available", as
   assert.equal(response.citations.length, 1);
   assert.equal(response.citations[0]?.url, "https://example.com/auth");
 });
+
+test("answerQuestion returns policy_blocked when tenant source policy excludes all sources", async () => {
+  const db = createFakeDb([]);
+
+  const response = await answerQuestion(
+    db,
+    {
+      question: "How do I authenticate?",
+      max_citations: 2,
+      filters: {
+        sources: ["openai"],
+      },
+    },
+    {
+      policy: {
+        allow_sources: ["stripe"],
+      },
+    },
+  );
+
+  assert.equal(response.decision.status, "policy_blocked");
+  assert.ok(response.warnings.includes("policy_blocked"));
+});

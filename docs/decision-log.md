@@ -144,3 +144,47 @@ Why:
 Impact:
 - Live stack deployed successfully on Fly in `dfw`.
 - Deployment runbook now aligns with actual platform constraints observed during rollout.
+
+## 2026-02-16 - Competitive posture: reliability workflows over doc chat
+Decision:
+Position the product moat around reliability workflows (version/context correctness, change detection, and safe action gating), not generic "chat with docs."
+
+Why:
+The market for docs chat is crowded and increasingly bundled into incumbent platforms. A standalone product must prove operational risk reduction and engineering time savings.
+
+Impact:
+- Added formal risk register with prioritized mitigations.
+- Roadmap now includes explicit enterprise-readiness and procurement-grade differentiation work (auth, tenant policy, CI gates, ROI metrics).
+
+## 2026-02-16 - Hosted auth + tenant policy enforcement baseline
+Decision:
+Enforce optional bearer auth on hosted query API and hosted MCP endpoints, and apply tenant policy controls (source allow/deny, trust thresholds, sync restrictions) at request time.
+
+Why:
+Enterprise readiness and controlled rollouts require identity- and tenant-aware governance, not global open access.
+
+Impact:
+- Added auth guards and tenant context propagation.
+- Added policy-aware filtering in search/answer/sources/changes/sync flows.
+
+## 2026-02-16 - Procurement-facing telemetry and CI risk gating
+Decision:
+Instrument per-request telemetry and expose tenant summary metrics, plus enforce optional PR gate checks against live change/decision risk signals.
+
+Why:
+Winning procurement requires measurable reliability and risk controls, not feature claims.
+
+Impact:
+- Added `telemetry_event` data model and `/v1/metrics/summary`.
+- Added CI workflow with optional doc-risk gate script for breaking/deprecation and unsafe decision states.
+
+## 2026-02-16 - Section-level change classifier baseline
+Decision:
+Upgrade change detection from whole-document keyword checks to section-level diff + keyword signals and add fixture-based evaluation loop.
+
+Why:
+Whole-document keyword matching creates avoidable false positives and weak explainability.
+
+Impact:
+- Change events now include changed-section metadata.
+- Added classifier evaluation command and fixtures for regression tracking.

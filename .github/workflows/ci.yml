@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test
+
+  docs-risk-gate:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: ${{ secrets.WIUD_GATE_BASE_URL != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run docs risk gate
+        env:
+          WIUD_GATE_BASE_URL: ${{ secrets.WIUD_GATE_BASE_URL }}
+          WIUD_GATE_API_KEY: ${{ secrets.WIUD_GATE_API_KEY }}
+          WIUD_GATE_TENANT_ID: ${{ secrets.WIUD_GATE_TENANT_ID }}
+          WIUD_GATE_SOURCES: ${{ vars.WIUD_GATE_SOURCES }}
+          WIUD_GATE_QUESTION: ${{ vars.WIUD_GATE_QUESTION }}
+          ALLOW_DOC_BREAKING: ${{ vars.ALLOW_DOC_BREAKING }}
+        run: node scripts/ci/doc-gate.mjs

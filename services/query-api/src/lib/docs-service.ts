@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 
 import { newId } from "./id.js";
+import { applySourcePolicy, canSyncSource, type TenantPolicy } from "./policy.js";
 import { getSourceSyncQueue } from "./queue.js";
 import type {
   AnswerRequest,
@@ -14,6 +15,7 @@ import type {
   SearchResponse,
   SourceSyncRequest,
   SourceSyncResponse,
+  TelemetrySummaryResponse,
 } from "../types.js";
 
 const DEFAULT_STALE_THRESHOLD_MINUTES = 24 * 60;
@@ -122,6 +124,21 @@ function buildDecision(
     };
   }
 
+  if (status === "policy_blocked") {
+    return {
+      status,
+      confidence,
+      uncertainties: ["tenant_policy_restriction"],
+      policy_flags: ["policy_blocked"],
+      actionability: {
+        recommended_next_steps: [
+          "Request additional source access in tenant policy controls.",
+          "Adjust allowed source list or trust thresholds for this tenant.",
+        ],
+      },
+    };
+  }
+
   return {
     status,
     confidence,
@@ -147,9 +164,24 @@ function detectPromptInjectionSignals(value: string): string[] {
 }
 
 export async function searchDocs(db: Pool, payload: SearchRequest): Promise<SearchResponse> {
+  return searchDocsWithPolicy(db, payload, {});
+}
+
+export async function searchDocsWithPolicy(
+  db: Pool,
+  payload: SearchRequest,
+  options: QueryExecutionOptions,
+): Promise<SearchResponse> {
   const topK = payload.top_k ?? 10;
   const values: unknown[] = [];
   const where: string[] = [];
+  const policy = options.policy ?? {};
+  const effectiveSources = applySourcePolicy(payload.filters?.sources, policy);
+
+  if (effectiveSources && effectiveSources.length === 0) {
+    return { results: [] };
+  }
+
   const contextLikeFields: Array<string | undefined> = [
     payload.filters?.region,
     payload.filters?.plan,
@@ -160,9 +192,14 @@ export async function searchDocs(db: Pool, payload: SearchRequest): Promise<Sear
   values.push(toLikeQuery(payload.query));
   const likeIndex = values.length;
 
-  if (payload.filters?.sources && payload.filters.sources.length > 0) {
-    values.push(payload.filters.sources);
+  if (effectiveSources && effectiveSources.length > 0) {
+    values.push(effectiveSources);
     where.push(`s.id = ANY($${values.length}::text[])`);
+  }
+
+  if (typeof policy.min_trust_score === "number") {
+    values.push(policy.min_trust_score);
+    where.push(`COALESCE(s.trust_score, 1.0) >= $${values.length}`);
   }
 
   if (payload.filters?.version) {
@@ -245,15 +282,31 @@ export async function searchDocs(db: Pool, payload: SearchRequest): Promise<Sear
 export async function answerQuestion(
   db: Pool,
   payload: AnswerRequest,
+  options: QueryExecutionOptions = {},
 ): Promise<AnswerResponse> {
   const citationLimit = payload.max_citations ?? 5;
-  const searchResult = await searchDocs(db, {
+  const searchResult = await searchDocsWithPolicy(db, {
     query: payload.question,
     filters: payload.filters,
     top_k: citationLimit,
-  });
+  }, options);
 
   const generatedAt = new Date().toISOString();
+  const effectiveSources = applySourcePolicy(payload.filters?.sources, options.policy ?? {});
+
+  if (effectiveSources && effectiveSources.length === 0) {
+    const decision = buildDecision("policy_blocked", 0, false);
+    return {
+      answer: "No permitted sources are available under current tenant policy.",
+      citations: [],
+      freshness: {
+        generated_at: generatedAt,
+        max_source_age_minutes: 0,
+      },
+      warnings: ["policy_blocked"],
+      decision,
+    };
+  }
 
   if (searchResult.results.length === 0) {
     const decision = buildDecision("insufficient_sources", 0, false);
@@ -388,14 +441,29 @@ export async function answerQuestion(
 export async function listSources(
   db: Pool,
   filterSources?: string[],
+  options: QueryExecutionOptions = {},
 ): Promise<ListSourcesResponse> {
+  const effectiveSources = applySourcePolicy(filterSources, options.policy ?? {});
+  if (effectiveSources && effectiveSources.length === 0) {
+    return { sources: [] };
+  }
+
   const values: unknown[] = [];
   const where =
-    filterSources && filterSources.length > 0
+    effectiveSources && effectiveSources.length > 0
       ? (() => {
-          values.push(filterSources);
+          values.push(effectiveSources);
           return `WHERE s.id = ANY($${values.length}::text[])`;
         })()
+      : "";
+
+  if (typeof options.policy?.min_trust_score === "number") {
+    values.push(options.policy.min_trust_score);
+  }
+
+  const trustWhere =
+    typeof options.policy?.min_trust_score === "number"
+      ? (where ? ` AND COALESCE(s.trust_score, 1.0) >= $${values.length}` : `WHERE COALESCE(s.trust_score, 1.0) >= $${values.length}`)
       : "";
 
   const sql = `
@@ -415,7 +483,7 @@ export async function listSources(
       ORDER BY fetched_at DESC
       LIMIT 1
     ) ls ON TRUE
-    ${where}
+    ${where}${trustWhere}
     ORDER BY s.id ASC
   `;
 
@@ -441,13 +509,30 @@ export async function listSources(
 export async function listChanges(
   db: Pool,
   query: ListChangesQuery,
+  options: QueryExecutionOptions = {},
 ): Promise<ListChangesResponse> {
   const values: unknown[] = [];
   const where: string[] = [];
+  const policy = options.policy ?? {};
+
+  if (query.source) {
+    const allowed = applySourcePolicy([query.source], policy) ?? [];
+    if (allowed.length === 0) {
+      return { changes: [] };
+    }
+  }
 
   if (query.source) {
     values.push(query.source);
     where.push(`source_id = $${values.length}`);
+  } else {
+    const restrictedSources = applySourcePolicy(undefined, policy);
+    if (restrictedSources && restrictedSources.length > 0) {
+      values.push(restrictedSources);
+      where.push(`source_id = ANY($${values.length}::text[])`);
+    } else if (policy.allow_sources && policy.allow_sources.length > 0) {
+      return { changes: [] };
+    }
   }
 
   if (query.event_type) {
@@ -500,7 +585,12 @@ export async function listChanges(
 export async function enqueueSourceSync(
   db: Pool,
   payload: SourceSyncRequest,
+  options: QueryExecutionOptions = {},
 ): Promise<SourceSyncResponse> {
+  if (!canSyncSource(payload.source, options.policy ?? {})) {
+    throw new Error("policy_blocked_for_source_sync");
+  }
+
   const requestId = newId("ssr");
   const requestedAt = new Date().toISOString();
 
@@ -544,3 +634,41 @@ export async function enqueueSourceSync(
     requested_at: requestedAt,
   };
 }
+
+export async function getTelemetrySummary(
+  db: Pool,
+  tenantId: string,
+  days = 7,
+): Promise<TelemetrySummaryResponse> {
+  const clampedDays = Math.max(1, Math.min(90, Math.round(days)));
+  const result = await db.query(
+    `
+      SELECT
+        COUNT(*)::int AS total_requests,
+        COUNT(*) FILTER (WHERE endpoint = '/v1/answer')::int AS total_answers,
+        COUNT(*) FILTER (WHERE endpoint = '/v1/answer' AND decision_status = 'grounded')::int AS grounded_answers,
+        COUNT(*) FILTER (WHERE endpoint = '/v1/answer' AND decision_status IS NOT NULL AND decision_status <> 'grounded')::int AS abstained_answers,
+        COALESCE(AVG(latency_ms)::float8, 0)::float8 AS avg_latency_ms
+      FROM telemetry_event
+      WHERE tenant_id = $1
+        AND created_at >= NOW() - ($2::int || ' days')::interval
+    `,
+    [tenantId, clampedDays],
+  );
+
+  const row = result.rows[0] ?? {};
+  return {
+    summary: {
+      window_days: clampedDays,
+      total_requests: Number(row.total_requests ?? 0),
+      total_answers: Number(row.total_answers ?? 0),
+      grounded_answers: Number(row.grounded_answers ?? 0),
+      abstained_answers: Number(row.abstained_answers ?? 0),
+      avg_latency_ms: Number(row.avg_latency_ms ?? 0),
+    },
+  };
+}
+type QueryExecutionOptions = {
+  tenantId?: string;
+  policy?: TenantPolicy;
+};

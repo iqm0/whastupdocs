@@ -52,7 +52,8 @@ export type DecisionEnvelope = {
     | "insufficient_sources"
     | "stale_sources"
     | "conflict_detected"
-    | "unsafe_content";
+    | "unsafe_content"
+    | "policy_blocked";
   confidence: number;
   uncertainties: string[];
   policy_flags: string[];

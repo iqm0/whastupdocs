@@ -121,6 +121,28 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /v1/metrics/summary:
+    get:
+      summary: Summarize reliability and latency telemetry for the current tenant
+      operationId: getTelemetrySummary
+      parameters:
+        - in: query
+          name: days
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 90
+      responses:
+        '200':
+          description: Telemetry summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetrySummaryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
     bearerAuth:
@@ -263,7 +285,7 @@ components:
       properties:
         status:
           type: string
-          enum: [grounded, insufficient_sources, stale_sources, conflict_detected, unsafe_content]
+          enum: [grounded, insufficient_sources, stale_sources, conflict_detected, unsafe_content, policy_blocked]
         confidence:
           type: number
           minimum: 0
@@ -380,6 +402,34 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ChangeEvent'
+    TelemetrySummary:
+      type: object
+      required: [window_days, total_requests, total_answers, grounded_answers, abstained_answers, avg_latency_ms]
+      properties:
+        window_days:
+          type: integer
+          minimum: 1
+        total_requests:
+          type: integer
+          minimum: 0
+        total_answers:
+          type: integer
+          minimum: 0
+        grounded_answers:
+          type: integer
+          minimum: 0
+        abstained_answers:
+          type: integer
+          minimum: 0
+        avg_latency_ms:
+          type: number
+          minimum: 0
+    TelemetrySummaryResponse:
+      type: object
+      required: [summary]
+      properties:
+        summary:
+          $ref: '#/components/schemas/TelemetrySummary'
     ErrorResponse:
       type: object
       required: [error, message]

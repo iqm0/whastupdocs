@@ -45,6 +45,24 @@
   - `/v1/changes` returns indexed change events
   - `/v1/answer` returns grounded response for indexed query terms
 - Provisioned dedicated queue Redis (`wud-redis-queue-prod`) with no-eviction policy and rotated `REDIS_URL` secrets for query + worker.
+- Added competitive/enterprise risk register and mitigation actions in `docs/risk-register.md`.
+- Added hosted endpoint auth controls:
+  - Query API bearer auth via `WIUD_API_KEYS`
+  - Hosted MCP bearer auth via `WIUD_MCP_API_KEYS`
+- Added tenant policy engine and enforcement:
+  - per-tenant source allow/deny and trust threshold controls
+  - policy-aware source sync restrictions
+- Added telemetry event pipeline and metrics endpoint:
+  - migration `db/migrations/0004_telemetry_event.sql`
+  - query API writes per-request telemetry
+  - `/v1/metrics/summary` tenant-level reliability/latency summary
+- Added CI/PR workflow and docs risk gate script:
+  - `.github/workflows/ci.yml`
+  - `scripts/ci/doc-gate.mjs`
+- Upgraded change classification to section-level diff signals and added evaluation loop assets:
+  - `services/ingestion-worker/src/store.ts`
+  - `services/ingestion-worker/scripts/eval-change-classifier.ts`
+  - `scripts/eval/change-classifier-fixtures.json`
 
 ### Validation snapshots
 

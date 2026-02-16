@@ -51,7 +51,8 @@ export type DecisionStatus =
   | "insufficient_sources"
   | "stale_sources"
   | "conflict_detected"
-  | "unsafe_content";
+  | "unsafe_content"
+  | "policy_blocked";
 
 export type DecisionEnvelope = {
   status: DecisionStatus;
@@ -117,4 +118,17 @@ export type ListChangesQuery = {
 
 export type ListChangesResponse = {
   changes: ChangeEvent[];
+};
+
+export type TelemetrySummary = {
+  window_days: number;
+  total_requests: number;
+  total_answers: number;
+  grounded_answers: number;
+  abstained_answers: number;
+  avg_latency_ms: number;
+};
+
+export type TelemetrySummaryResponse = {
+  summary: TelemetrySummary;
 };

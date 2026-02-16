@@ -4,7 +4,7 @@ Last updated: 2026-02-16
 
 ## Local MCP (`stdio`) for IDE agents
 
-From `/Users/igormoreira/code/wud`:
+From repository root:
 
 ```bash
 npm run dev:mcp
@@ -14,7 +14,7 @@ This starts MCP over `stdio` (default mode).
 
 ## Local MCP over HTTP (hosted-compatible mode)
 
-From `/Users/igormoreira/code/wud`:
+From repository root:
 
 ```bash
 npm run dev:mcp:http

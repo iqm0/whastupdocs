@@ -34,40 +34,111 @@ function estimateTokenCount(text: string): number {
   return Math.max(words, Math.ceil(text.length / 4));
 }
 
-function detectDocumentChangeEvents(
+type Section = {
+  heading: string;
+  body: string;
+};
+
+function normalizeForDiff(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function splitSections(text: string): Section[] {
+  const lines = text.split("\n");
+  const sections: Section[] = [];
+  let currentHeading = "Document";
+  let body: string[] = [];
+
+  const flush = (): void => {
+    const joined = body.join("\n").trim();
+    if (!joined) {
+      return;
+    }
+    sections.push({
+      heading: currentHeading,
+      body: joined,
+    });
+  };
+
+  for (const line of lines) {
+    if (line.startsWith("## ")) {
+      flush();
+      currentHeading = line.slice(3).trim() || "Untitled";
+      body = [];
+      continue;
+    }
+    body.push(line);
+  }
+  flush();
+  return sections;
+}
+
+function changedSections(previousText: string, nextText: string): Section[] {
+  const prev = splitSections(previousText);
+  const next = splitSections(nextText);
+  const prevMap = new Map<string, string>();
+
+  for (const section of prev) {
+    prevMap.set(section.heading, normalizeForDiff(section.body));
+  }
+
+  const changed: Section[] = [];
+  for (const section of next) {
+    const prevBody = prevMap.get(section.heading);
+    const nextBody = normalizeForDiff(section.body);
+    if (!prevBody || prevBody !== nextBody) {
+      changed.push(section);
+    }
+  }
+
+  return changed;
+}
+
+function includesBreakingSignals(text: string): boolean {
+  return [
+    "breaking change",
+    "no longer supported",
+    "sunset",
+    "incompatible",
+  ].some((keyword) => text.includes(keyword));
+}
+
+function includesDeprecationSignals(text: string): boolean {
+  return ["deprecated", "deprecation", "will be removed"].some((keyword) =>
+    text.includes(keyword)
+  );
+}
+
+export function detectDocumentChangeEvents(
   previousText: string,
   nextText: string,
   title: string,
 ): DocumentChangeEvent[] {
   const events: DocumentChangeEvent[] = [];
-
-  const prevLower = previousText.toLowerCase();
-  const nextLower = nextText.toLowerCase();
+  const prevLower = normalizeForDiff(previousText);
+  const nextLower = normalizeForDiff(nextText);
+  const changed = changedSections(previousText, nextText);
+  const changedJoined = normalizeForDiff(changed.map((section) => section.body).join("\n"));
+  const changedHeadings = changed.map((section) => section.heading).slice(0, 10);
 
   const introducedDeprecation =
-    !prevLower.includes("deprecated") &&
-    (nextLower.includes("deprecated") || nextLower.includes("deprecation"));
+    !includesDeprecationSignals(prevLower) &&
+    includesDeprecationSignals(changedJoined);
 
   const introducedBreaking =
-    (nextLower.includes("breaking change") ||
-      nextLower.includes("no longer supported") ||
-      nextLower.includes("removed") ||
-      nextLower.includes("sunset")) &&
-    !(
-      prevLower.includes("breaking change") ||
-      prevLower.includes("no longer supported") ||
-      prevLower.includes("removed") ||
-      prevLower.includes("sunset")
-    );
+    !includesBreakingSignals(prevLower) &&
+    includesBreakingSignals(changedJoined);
 
   if (introducedBreaking) {
     events.push({
       event_type: "breaking_change",
-      severity: "high",
+      severity: "critical",
       summary: `Potential breaking change detected in ${title}`,
       details: {
-        detector: "keyword",
+        detector: "section_diff_keyword",
         keyword_family: "breaking_or_removed",
+        changed_sections: changedHeadings,
+        changed_section_count: changed.length,
       },
     });
   }
@@ -78,8 +149,10 @@ function detectDocumentChangeEvents(
       severity: "medium",
       summary: `Deprecation language detected in ${title}`,
       details: {
-        detector: "keyword",
+        detector: "section_diff_keyword",
         keyword_family: "deprecation",
+        changed_sections: changedHeadings,
+        changed_section_count: changed.length,
       },
     });
   }
@@ -90,7 +163,9 @@ function detectDocumentChangeEvents(
       severity: "low",
       summary: `Documentation updated for ${title}`,
       details: {
-        detector: "content_hash",
+        detector: "section_diff",
+        changed_sections: changedHeadings,
+        changed_section_count: changed.length,
       },
     });
   }

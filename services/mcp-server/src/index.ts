@@ -157,6 +157,28 @@ function sendJson(
   res.end(JSON.stringify(payload));
 }
 
+function parseApiKeys(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function extractBearerToken(header: string | string[] | undefined): string | null {
+  if (!header) {
+    return null;
+  }
+  const raw = Array.isArray(header) ? header[0] : header;
+  if (!raw) {
+    return null;
+  }
+  const [scheme, token] = raw.split(/\s+/, 2);
+  if (!scheme || !token || scheme.toLowerCase() !== "bearer") {
+    return null;
+  }
+  return token;
+}
+
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -179,6 +201,7 @@ async function runStdio(): Promise<void> {
 async function runStreamableHttp(): Promise<void> {
   const port = Number(process.env.PORT ?? process.env.WIUD_MCP_PORT ?? 3001);
   const path = process.env.WIUD_MCP_PATH ?? "/mcp";
+  const apiKeys = parseApiKeys(process.env.WIUD_MCP_API_KEYS ?? "");
 
   const httpServer = createServer(async (req, res) => {
     if (!req.url || !req.method) {
@@ -194,6 +217,14 @@ async function runStreamableHttp(): Promise<void> {
     if (!req.url.startsWith(path)) {
       sendJson(res, 404, { error: "not_found" });
       return;
+    }
+
+    if (apiKeys.length > 0) {
+      const token = extractBearerToken(req.headers.authorization);
+      if (!token || !apiKeys.includes(token)) {
+        sendJson(res, 401, { error: "missing_or_invalid_api_token" });
+        return;
+      }
     }
 
     if (!["POST", "GET", "DELETE"].includes(req.method)) {

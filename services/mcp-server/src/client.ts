@@ -8,19 +8,23 @@ import type {
   SearchResponse,
 } from "./types.js";
 
-function getConfig(): { backendUrl: string; apiKey?: string } {
+function getConfig(): { backendUrl: string; apiKey?: string; tenantId?: string } {
   return {
     backendUrl: process.env.WIUD_BACKEND_URL ?? "http://localhost:8080",
     apiKey: process.env.WIUD_API_KEY,
+    tenantId: process.env.WIUD_TENANT_ID,
   };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const { backendUrl, apiKey } = getConfig();
+  const { backendUrl, apiKey, tenantId } = getConfig();
   const headers = new Headers(init?.headers);
   headers.set("content-type", "application/json");
   if (apiKey) {
     headers.set("authorization", `Bearer ${apiKey}`);
+  }
+  if (tenantId) {
+    headers.set("x-wiud-tenant-id", tenantId);
   }
 
   const response = await fetch(`${backendUrl}${path}`, {

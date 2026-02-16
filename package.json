@@ -12,6 +12,7 @@
     "dev:ingestion-worker": "npm --workspace @wiud/ingestion-worker run dev",
     "build": "npm -ws run build",
     "test": "npm -ws run test --if-present",
+    "eval:classifier": "npm --workspace @wiud/ingestion-worker run eval:classifier",
     "db:migrate": "./scripts/run-migrations.sh",
     "infra:up": "./scripts/infra-up.sh",
     "infra:down": "./scripts/infra-down.sh"

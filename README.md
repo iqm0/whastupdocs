@@ -13,6 +13,7 @@ It continuously ingests official developer documentation and changelogs, indexes
 - `docs/implementation-plan.md`: product + engineering implementation plan
 - `docs/fly-deployment.md`: Fly.io deployment guide (cloud API + worker, local MCP)
 - `docs/mcp-client-setup.md`: MCP client setup for local/hosted/Ollama workflows
+- `docs/risk-register.md`: competitive risks, threats, and mitigation actions
 - `openapi/openapi.yaml`: backend API contract (MVP)
 - `db/migrations/0001_init.sql`: initial PostgreSQL schema
 - `db/migrations/0002_source_sync_request.sql`: source sync request queue tracking
@@ -90,6 +91,8 @@ Environment variables:
 
 - `WIUD_BACKEND_URL`: backend API base URL for MCP server (default: `http://localhost:8080`)
 - `WIUD_API_KEY`: optional bearer token for backend API
+- `WIUD_TENANT_ID`: optional tenant routing header passed to backend
+- `WIUD_MCP_API_KEYS`: optional comma-separated bearer keys required for hosted MCP HTTP mode
 
 ## Current Status
 
@@ -107,9 +110,30 @@ The source sync flow is now queue-backed:
 - Answer generation detects prompt-injection patterns in retrieved chunks and can abstain with `decision.status = unsafe_content`.
 - API responses expose warnings and policy flags so agents can avoid unsafe autonomous actions.
 
+## Multi-Tenant Policy and Auth
+
+- Query API auth is enabled when `WIUD_API_KEYS` is configured (comma-separated bearer tokens).
+- Tenant context is passed with `x-wiud-tenant-id` (defaults to `default`).
+- Tenant policy controls can be configured with `WIUD_TENANT_POLICIES_JSON`:
+  - `allow_sources`
+  - `deny_sources`
+  - `min_trust_score`
+  - `sync_allowed_sources`
+- Hosted MCP auth is enabled when `WIUD_MCP_API_KEYS` is configured.
+
+## CI Gates
+
+- GitHub Actions CI runs build + tests on push/PR: `.github/workflows/ci.yml`.
+- Optional docs risk gate runs when `WIUD_GATE_BASE_URL` is configured in repository secrets.
+- Manual run:
+
+```bash
+node scripts/ci/doc-gate.mjs
+```
+
 ## License
 
-This repository is distributed under the `What Is Up, Docs Community License v1.0` (`/Users/igormoreira/code/wud/LICENSE`).
+This repository is distributed under the `What Is Up, Docs Community License v1.0` (`LICENSE`).
 
 - Allowed: personal, educational, research, and non-commercial internal use.
 - Restricted: commercial productization, hosted commercial offerings, and competing commercial derivatives without a commercial license.
@@ -121,4 +145,4 @@ This repository is distributed under the `What Is Up, Docs Community License v1.
 - Hosted MCP mode: deploy `mcp-server` with `WIUD_MCP_TRANSPORT=streamable-http` and expose `/mcp` for enterprise-managed clients.
 - Hybrid local-LLM mode: pair local Ollama model with local MCP + local or cloud backend API.
 
-See `/Users/igormoreira/code/wud/docs/fly-deployment.md` for concrete Fly commands.
+See `docs/fly-deployment.md` for concrete Fly commands.

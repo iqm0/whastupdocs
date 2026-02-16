@@ -1,0 +1,25 @@
+{
+  "fixtures": [
+    {
+      "id": "breaking-no-longer-supported",
+      "title": "Payments API",
+      "previous": "## Endpoint\nPOST /v1/payouts is available for all plans.",
+      "next": "## Endpoint\nPOST /v1/payouts is no longer supported for starter plans.",
+      "expected_primary_event": "breaking_change"
+    },
+    {
+      "id": "deprecation-introduced",
+      "title": "Auth API",
+      "previous": "## Token\nUse api_key for authentication.",
+      "next": "## Token\nUse api_key for authentication. This flow is deprecated and will be removed in v3.",
+      "expected_primary_event": "deprecation"
+    },
+    {
+      "id": "generic-update",
+      "title": "Quickstart",
+      "previous": "## Intro\nInstall package version 1.2.0.",
+      "next": "## Intro\nInstall package version 1.3.0.",
+      "expected_primary_event": "updated"
+    }
+  ]
+}

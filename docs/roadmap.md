@@ -80,3 +80,12 @@ Status: In Progress
 - [x] Define community license for non-commercial and learning use
 - [x] Restrict commercial productization without commercial license
 - [ ] Publish commercial licensing terms and intake workflow
+
+## Milestone 10: Competitive Moat and Enterprise Readiness
+Status: Completed
+
+- [x] Create formal competitive risk register and mitigation plan
+- [x] Add auth for hosted query API and hosted MCP endpoints
+- [x] Add tenant-aware policy primitives (source allow/deny, trust thresholds)
+- [x] Add CI/PR gates for deprecation and breaking-change detection
+- [x] Add reliability/cost outcome metrics for procurement-grade ROI proof
