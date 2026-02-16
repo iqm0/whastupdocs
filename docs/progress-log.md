@@ -83,6 +83,18 @@
   - query API now optionally computes query embedding and fuses cosine semantic score into hybrid ranking
   - added env controls for embeddings across query API and ingestion worker
   - expanded hybrid retrieval tests for semantic-score ranking behavior
+- Added retrieval quality evaluation harness:
+  - new query-api eval script `services/query-api/scripts/eval-retrieval.ts`
+  - fixture set `scripts/eval/retrieval-fixtures.json`
+  - workspace command `npm run eval:retrieval`
+- Added source-specific parser denoising controls:
+  - crawler supports HTML-level and line-level noise filtering policies
+  - source adapters (OpenAI, Next.js, Stripe, React) now include targeted boilerplate/noise patterns
+  - added ingestion tests for noise stripping behavior
+- Packaged change events into action-ready guidance:
+  - query API now returns `recommended_actions` for each change event
+  - MCP compact `list_changes` payload includes top recommendation hints
+  - added query-api and MCP tests for recommendation fields
 
 ### Validation snapshots
 
@@ -95,7 +107,7 @@
 
 - Add false-positive/false-negative tracking loop for change classification precision.
 - Expand workflow integrations (Slack + IDE UX + production metrics surfaces).
-- Add retrieval quality evaluation set (developer-phrase vs doc-phrase mismatch and regression tracking).
+- Publish ICP wedge pack (payments/identity first) with opinionated defaults.
 
 ### Risks observed
 

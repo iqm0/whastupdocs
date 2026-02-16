@@ -95,7 +95,7 @@ Status: In Progress
 
 - [x] Implement first hybrid retrieval layer (ILIKE + Postgres full-text + intent reranking)
 - [x] Add semantic embeddings retrieval path and fuse with lexical candidates
-- [ ] Add retrieval quality evaluation set (developer-phrase vs doc-phrase mismatch)
-- [ ] Add source-specific parsing upgrades for JS-heavy and noisy docs sites
-- [ ] Package change events into prescriptive migration/action recommendations
+- [x] Add retrieval quality evaluation set (developer-phrase vs doc-phrase mismatch)
+- [x] Add source-specific parsing upgrades for JS-heavy and noisy docs sites
+- [x] Package change events into prescriptive migration/action recommendations
 - [ ] Publish ICP-specific wedge pack (payments/identity first) with opinionated defaults

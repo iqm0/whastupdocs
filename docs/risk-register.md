@@ -129,8 +129,8 @@ Status:
 
 ## Immediate Next Actions (Execution Order)
 
-1. Add retrieval quality evaluation set (developer-phrase vs doc-phrase mismatch).
-2. Upgrade source-specific parsers for noisy/JS-heavy docs.
-3. Package change events into prescriptive migration/action recommendations.
-4. Add audit export workflows and policy observability views.
-5. Define legal connector policy templates for public, authenticated, and restricted sources.
+1. Turn retrieval eval harness into regression gate thresholds in CI.
+2. Add audit export workflows and policy observability views.
+3. Define legal connector policy templates for public, authenticated, and restricted sources.
+4. Publish ICP wedge pack (payments/identity first) with adoption playbooks.
+5. Expand source parser rules to additional high-churn provider packs.

@@ -369,7 +369,7 @@ components:
           format: date-time
     ChangeEvent:
       type: object
-      required: [id, source, canonical_url, title, event_type, severity, summary, details, detected_at]
+      required: [id, source, canonical_url, title, event_type, severity, summary, details, recommended_actions, detected_at]
       properties:
         id:
           type: string
@@ -391,6 +391,10 @@ components:
         details:
           type: object
           additionalProperties: true
+        recommended_actions:
+          type: array
+          items:
+            type: string
         detected_at:
           type: string
           format: date-time

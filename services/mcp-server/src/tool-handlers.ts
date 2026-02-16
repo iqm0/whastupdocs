@@ -144,6 +144,7 @@ export async function handleToolCall(
             event_type: change.event_type,
             severity: change.severity,
             summary: change.summary,
+            recommended_actions: change.recommended_actions.slice(0, 2),
             detected_at: change.detected_at,
           })),
         }

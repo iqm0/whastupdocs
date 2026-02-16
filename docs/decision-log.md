@@ -216,3 +216,36 @@ Impact:
 - Ingestion can generate chunk embeddings when enabled.
 - Query API can score candidate chunks semantically and rerank with hybrid fusion.
 - Retrieval path remains fail-open to lexical ranking when embeddings are disabled/unavailable.
+
+## 2026-02-16 - Retrieval evaluation baseline as fixture-driven harness
+Decision:
+Add a fixture-driven retrieval evaluator (`eval:retrieval`) that runs query cases against the live index and reports hit@k + MRR with explicit failed scenarios.
+
+Why:
+Retrieval quality must be measured continuously, especially for developer-phrase vs docs-phrase mismatch where relevance regressions are easy to miss.
+
+Impact:
+- Added shared retrieval fixtures and scoring script.
+- Established baseline metrics for ranking changes and parser updates.
+
+## 2026-02-16 - Source-specific denoising before chunking
+Decision:
+Add source-level HTML and line noise filtering rules in crawler adapters to strip navigation/boilerplate and reduce junk chunks before indexing.
+
+Why:
+Generic extraction works but includes high-volume UI chrome on JS-heavy docs sites, which harms retrieval precision and increases false positives.
+
+Impact:
+- Crawler now supports `htmlNoisePatterns` and `lineNoisePatterns`.
+- OpenAI/Next.js/Stripe/React adapters now apply targeted denoising policies.
+
+## 2026-02-16 - Actionable change-event payloads
+Decision:
+Attach deterministic `recommended_actions` to each `change_event` response (API and MCP) based on event type, severity, and changed section metadata.
+
+Why:
+Teams need immediate migration/mitigation next steps, not only event labels.
+
+Impact:
+- `/v1/changes` now returns prescriptive action guidance per event.
+- MCP `list_changes` compact mode now surfaces top action hints for agent workflows.

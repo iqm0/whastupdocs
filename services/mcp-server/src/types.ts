@@ -94,6 +94,7 @@ export type ChangeEvent = {
   severity: "low" | "medium" | "high" | "critical";
   summary: string;
   details: Record<string, unknown>;
+  recommended_actions: string[];
   detected_at: string;
 };
 

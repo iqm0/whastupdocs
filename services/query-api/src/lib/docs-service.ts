@@ -165,6 +165,46 @@ function detectPromptInjectionSignals(value: string): string[] {
   return Array.from(signals);
 }
 
+function buildRecommendedActions(change: {
+  source: string;
+  event_type: ChangeEvent["event_type"];
+  severity: ChangeEvent["severity"];
+  canonical_url: string;
+  title: string;
+  details: Record<string, unknown>;
+}): string[] {
+  const actions: string[] = [];
+
+  if (change.event_type === "breaking_change") {
+    actions.push("Open a migration task and block automatic deploy until validation passes.");
+    actions.push("Run integration tests against affected endpoints and SDK methods.");
+    actions.push("Pin versions and add compatibility notes to internal runbooks.");
+  } else if (change.event_type === "deprecation") {
+    actions.push("Create a deprecation remediation ticket with owner and target removal date.");
+    actions.push("Audit code usage of deprecated endpoints/fields and schedule replacements.");
+  } else if (change.event_type === "updated") {
+    actions.push("Review updated section for behavior, parameter, or auth contract changes.");
+  } else {
+    actions.push("Review new documentation coverage and update internal integration guides.");
+  }
+
+  if (change.severity === "critical" || change.severity === "high") {
+    actions.push("Escalate to on-call/platform owner and run pre-merge verification workflow.");
+  }
+
+  const changedSections = Array.isArray(change.details.changed_sections)
+    ? change.details.changed_sections.filter((value): value is string => typeof value === "string")
+    : [];
+  if (changedSections.length > 0) {
+    actions.push(
+      `Prioritize review of changed sections: ${changedSections.slice(0, 3).join(", ")}.`,
+    );
+  }
+
+  actions.push(`Source review URL: ${change.canonical_url}`);
+  return actions;
+}
+
 type HybridCandidate = {
   chunk_id: string;
   score: number;
@@ -646,6 +686,14 @@ export async function listChanges(
       severity: row.severity as ChangeEvent["severity"],
       summary: String(row.summary),
       details: (row.details ?? {}) as Record<string, unknown>,
+      recommended_actions: buildRecommendedActions({
+        source: String(row.source_id),
+        canonical_url: String(row.canonical_url),
+        title: String(row.title),
+        event_type: row.event_type as ChangeEvent["event_type"],
+        severity: row.severity as ChangeEvent["severity"],
+        details: (row.details ?? {}) as Record<string, unknown>,
+      }),
       detected_at: new Date(row.detected_at).toISOString(),
     })),
   };

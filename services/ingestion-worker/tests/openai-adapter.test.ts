@@ -12,6 +12,8 @@ import {
   htmlToText,
   isAllowedUrl,
   sanitizePromptInjectionLines,
+  stripHtmlNoise,
+  stripNoiseLines,
   splitIntoSections,
 } from "../src/adapters/openai.ts";
 
@@ -133,4 +135,33 @@ test("sanitizePromptInjectionLines removes suspicious short lines", () => {
   assert.equal(sanitized.removed_lines, 1);
   assert.match(sanitized.text, /OAuth 2\.0/);
   assert.doesNotMatch(sanitized.text, /Ignore previous instructions/);
+});
+
+test("stripHtmlNoise removes noisy layout blocks", () => {
+  const html = [
+    "<main>",
+    "<nav>nav links</nav>",
+    "<article><h2>Auth</h2><p>Use bearer tokens.</p></article>",
+    "<footer>footer links</footer>",
+    "</main>",
+  ].join("");
+
+  const cleaned = stripHtmlNoise(html, [/<nav[\s\S]*?<\/nav>/gi, /<footer[\s\S]*?<\/footer>/gi]);
+  const text = htmlToText(cleaned);
+  assert.doesNotMatch(text, /nav links/i);
+  assert.doesNotMatch(text, /footer links/i);
+  assert.match(text, /Use bearer tokens/i);
+});
+
+test("stripNoiseLines removes known boilerplate lines", () => {
+  const text = [
+    "## Webhooks",
+    "On this page",
+    "Use endpoint signatures for verification.",
+    "Was this page helpful?",
+  ].join("\n");
+  const cleaned = stripNoiseLines(text, [/^on this page$/i, /^was this page helpful\??$/i]);
+  assert.doesNotMatch(cleaned, /On this page/i);
+  assert.doesNotMatch(cleaned, /Was this page helpful/i);
+  assert.match(cleaned, /endpoint signatures/i);
 });

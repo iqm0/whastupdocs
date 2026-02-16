@@ -1,0 +1,43 @@
+{
+  "fixtures": [
+    {
+      "id": "openai-reasoning-guidance",
+      "query": "openai reasoning models tool use pattern",
+      "top_k": 8,
+      "filters": {
+        "sources": ["openai"],
+        "version": "latest"
+      },
+      "expected": {
+        "source": "openai",
+        "url_contains": "/docs/guides/reasoning"
+      }
+    },
+    {
+      "id": "stripe-webhook-signature",
+      "query": "stripe webhook signature verification endpoint secret",
+      "top_k": 8,
+      "filters": {
+        "sources": ["stripe"],
+        "version": "latest"
+      },
+      "expected": {
+        "source": "stripe",
+        "url_contains": "/webhooks"
+      }
+    },
+    {
+      "id": "nextjs-routing-docs",
+      "query": "nextjs app router routing pages and segments",
+      "top_k": 8,
+      "filters": {
+        "sources": ["nextjs"],
+        "version": "latest"
+      },
+      "expected": {
+        "source": "nextjs",
+        "url_contains": "/routing"
+      }
+    }
+  ]
+}

@@ -111,11 +111,19 @@ Optional semantic retrieval path:
 - Supported providers: OpenAI-compatible embeddings APIs and local Ollama embeddings.
 - If embeddings are disabled or unavailable, ranking gracefully falls back to lexical/FTS/intent fusion.
 
+Retrieval evaluation:
+
+- Run `npm run eval:retrieval` to score current index quality using fixture cases.
+- Default fixtures live at `scripts/eval/retrieval-fixtures.json`.
+- Override fixture path with `WIUD_RETRIEVAL_FIXTURES_PATH`.
+
 ## Safety Notes
 
 - Ingestion sanitizes high-risk prompt-injection lines before indexing content.
+- Ingestion applies source-specific noise filtering to remove common docs-site boilerplate before chunking.
 - Answer generation detects prompt-injection patterns in retrieved chunks and can abstain with `decision.status = unsafe_content`.
 - API responses expose warnings and policy flags so agents can avoid unsafe autonomous actions.
+- Change events now include `recommended_actions` to drive migration/remediation workflows.
 
 ## Multi-Tenant Policy and Auth
 

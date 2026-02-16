@@ -75,6 +75,8 @@ export type CrawlPolicy = {
   minTextChars?: number;
   language?: string;
   versionTag?: string;
+  htmlNoisePatterns?: RegExp[];
+  lineNoisePatterns?: RegExp[];
 };
 
 function sleep(ms: number): Promise<void> {
@@ -173,6 +175,32 @@ export function htmlToText(html: string): string {
     .replace(/<[^>]+>/g, " ");
 
   return normalizeWhitespace(decodeHtmlEntities(stripped));
+}
+
+export function stripHtmlNoise(html: string, patterns: RegExp[]): string {
+  let cleaned = html;
+  for (const pattern of patterns) {
+    cleaned = cleaned.replace(pattern, " ");
+  }
+  return cleaned;
+}
+
+export function stripNoiseLines(text: string, patterns: RegExp[]): string {
+  if (patterns.length === 0) {
+    return text;
+  }
+
+  const kept = text
+    .split("\n")
+    .filter((line) => {
+      const normalized = line.trim();
+      if (!normalized) {
+        return false;
+      }
+      return !patterns.some((pattern) => pattern.test(normalized));
+    });
+
+  return normalizeWhitespace(kept.join("\n"));
 }
 
 export function splitIntoSections(text: string): string[] {
@@ -497,7 +525,11 @@ export function createCrawlerAdapter(name: string, policy: CrawlPolicy = {}): So
         const html = await fetchTextWithRetry(url, timeoutMs, retries, retryBackoffMs, userAgent);
         const title = extractTitle(html, url);
         const mainHtml = extractMainHtml(html);
-        const text = htmlToText(mainHtml);
+        const noiseReducedHtml = stripHtmlNoise(mainHtml, policy.htmlNoisePatterns ?? []);
+        const text = stripNoiseLines(
+          htmlToText(noiseReducedHtml),
+          policy.lineNoisePatterns ?? [],
+        );
         const sanitized = sanitizePromptInjectionLines(text);
 
         if (sanitized.removed_lines > 0) {

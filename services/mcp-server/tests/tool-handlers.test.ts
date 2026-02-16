@@ -248,6 +248,7 @@ test("list_changes forwards query parameters", async () => {
           severity: "medium",
           summary: "Deprecation language detected",
           details: {},
+          recommended_actions: ["Create deprecation remediation ticket."],
           detected_at: new Date().toISOString(),
         },
       ],
@@ -268,6 +269,45 @@ test("list_changes forwards query parameters", async () => {
   );
   assert.equal(calls[0]?.init?.method, "GET");
   assert.match(result.content[0]?.text ?? "", /"event_type": "deprecation"/);
+});
+
+test("list_changes compact includes recommended action hints", async () => {
+  process.env.WIUD_BACKEND_URL = "http://fake-backend";
+
+  globalThis.fetch = (async () => {
+    return jsonResponse({
+      changes: [
+        {
+          id: "chg_1",
+          source: "stripe",
+          canonical_url: "https://docs.stripe.com/api/payment_intents",
+          title: "PaymentIntents",
+          event_type: "breaking_change",
+          severity: "critical",
+          summary: "Potential breaking change detected",
+          details: {},
+          recommended_actions: [
+            "Open migration task.",
+            "Run integration tests.",
+            "Pin versions.",
+          ],
+          detected_at: new Date().toISOString(),
+        },
+      ],
+    });
+  }) as typeof fetch;
+
+  const result = await handleToolCall("list_changes", {
+    source: "stripe",
+    compact: true,
+  });
+
+  const payload = JSON.parse(result.content[0]?.text ?? "{}");
+  assert.equal(payload.changes.length, 1);
+  assert.deepEqual(payload.changes[0]?.recommended_actions, [
+    "Open migration task.",
+    "Run integration tests.",
+  ]);
 });
 
 test("unknown tool returns tool error", async () => {
