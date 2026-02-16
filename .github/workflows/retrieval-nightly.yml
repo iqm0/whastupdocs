@@ -1,0 +1,42 @@
+name: Retrieval Quality Nightly
+
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run retrieval gate
+        env:
+          WIUD_GATE_BASE_URL: ${{ vars.WIUD_GATE_BASE_URL || 'https://wud-query-api-prod.fly.dev' }}
+          WIUD_GATE_API_KEY: ${{ secrets.WIUD_GATE_API_KEY }}
+          WIUD_RETRIEVAL_FIXTURES_PATH: scripts/eval/retrieval-fixtures.json
+          WIUD_RETRIEVAL_GATE_REQUIRE_ALL_SOURCES: 'false'
+        run: |
+          node scripts/ci/retrieval-gate.mjs | tee gate.json
+
+      - name: Post to Slack on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          test -n "$SLACK_WEBHOOK_URL" || exit 0
+          summary=$(jq -c '{hit_at_k, mrr, failed_cases, skipped_fixtures}' gate.json || echo '{}')
+          curl -sS -X POST "$SLACK_WEBHOOK_URL" -H 'content-type: application/json' \
+            -d "{\"text\":\"[what-is-up, docs] Retrieval gate FAILED\\n\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Retrieval gate failed*\\n\"}},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"\`$summary\`\"}}]}"
+
