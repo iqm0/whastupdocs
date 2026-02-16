@@ -14,6 +14,19 @@
     "poll_interval_minutes": 30
   },
   {
+    "id": "mdn-http",
+    "name": "MDN HTTP",
+    "kind": "docs",
+    "base_url": "https://developer.mozilla.org",
+    "seed_urls": [
+      "https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview",
+      "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers",
+      "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status"
+    ],
+    "trust_score": 0.9,
+    "poll_interval_minutes": 720
+  },
+  {
     "id": "nextjs",
     "name": "Next.js",
     "kind": "docs",
@@ -59,6 +72,18 @@
     ],
     "trust_score": 1.0,
     "poll_interval_minutes": 60
+  },
+  {
+    "id": "openbanking-uk",
+    "name": "OpenBanking UK",
+    "kind": "docs",
+    "base_url": "https://openbankinguk.github.io",
+    "seed_urls": [
+      "https://openbankinguk.github.io/read-write-api-specs/",
+      "https://openbankinguk.github.io/read-write-api-specs/versions/"
+    ],
+    "trust_score": 0.9,
+    "poll_interval_minutes": 180
   },
   {
     "id": "react",
