@@ -14,6 +14,7 @@ const tenantId = process.env.WIUD_GATE_TENANT_ID ?? "default";
 const fixturePath = process.env.WIUD_RETRIEVAL_FIXTURES_PATH ?? "scripts/eval/retrieval-fixtures.json";
 const minHitAtK = Number(process.env.WIUD_RETRIEVAL_GATE_MIN_HIT_AT_K ?? 0.65);
 const minMrr = Number(process.env.WIUD_RETRIEVAL_GATE_MIN_MRR ?? 0.5);
+const requireAllSources = process.env.WIUD_RETRIEVAL_GATE_REQUIRE_ALL_SOURCES === "true";
 
 function withHeaders(init = {}) {
   const headers = new Headers(init.headers || {});
@@ -64,8 +65,58 @@ async function main() {
     process.exit(0);
   }
 
+  const fixtureSources = Array.from(
+    new Set(
+      fixtures
+        .flatMap((fixture) => fixture.filters?.sources ?? [])
+        .filter((source) => typeof source === "string" && source.length > 0),
+    ),
+  );
+
+  let sourceStatusById = new Map();
+  if (fixtureSources.length > 0) {
+    const sourceQuery = fixtureSources.map((source) => `sources=${encodeURIComponent(source)}`).join("&");
+    const listResponse = await request(`/v1/sources?${sourceQuery}`, {
+      method: "GET",
+    });
+    const sourceRows = listResponse.sources ?? [];
+    sourceStatusById = new Map(sourceRows.map((row) => [row.source, row]));
+  }
+
+  const unavailableSources = fixtureSources.filter((source) => {
+    const status = sourceStatusById.get(source);
+    if (!status) {
+      return true;
+    }
+    const hasSync = typeof status.last_sync_at === "string" && !status.last_sync_at.startsWith("1970-01-01");
+    const snapshotFailed =
+      typeof status.error === "string" &&
+      status.error.toLowerCase().includes("failed");
+    return !hasSync || status.status === "failing" || snapshotFailed;
+  });
+
+  if (unavailableSources.length > 0 && requireAllSources) {
+    console.error(
+      `retrieval-gate: required sources unavailable: ${unavailableSources.join(", ")} (set WIUD_RETRIEVAL_GATE_REQUIRE_ALL_SOURCES=false to skip unavailable sources)`,
+    );
+    process.exit(1);
+  }
+
+  const skippedFixtures = [];
   const rows = [];
   for (const fixture of fixtures) {
+    const fixtureUnavailable = (fixture.filters?.sources ?? []).some((source) =>
+      unavailableSources.includes(source),
+    );
+    if (fixtureUnavailable) {
+      skippedFixtures.push({
+        id: fixture.id,
+        sources: fixture.filters?.sources ?? [],
+        reason: "source_unavailable",
+      });
+      continue;
+    }
+
     const topK = fixture.top_k ?? 10;
     const maxRank = fixture.max_rank ?? topK;
     const response = await request("/v1/search", {
@@ -105,6 +156,22 @@ async function main() {
       : 0;
 
   const failures = [];
+  if (total === 0) {
+    console.log(
+      JSON.stringify(
+        {
+          gate: "retrieval-quality",
+          total,
+          skipped: skippedFixtures.length,
+          skipped_fixtures: skippedFixtures,
+          message: "no executable fixtures after source-availability filtering",
+        },
+        null,
+        2,
+      ),
+    );
+    process.exit(0);
+  }
   if (hitAtK < minHitAtK) {
     failures.push(`hit@k ${hitAtK.toFixed(4)} below threshold ${minHitAtK.toFixed(4)}`);
   }
@@ -127,6 +194,7 @@ async function main() {
         failed_cases: rows
           .filter((row) => !row.hit)
           .map((row) => ({ id: row.id, query: row.query, rank: row.rank, max_rank: row.maxRank })),
+        skipped_fixtures: skippedFixtures,
       },
       null,
       2,

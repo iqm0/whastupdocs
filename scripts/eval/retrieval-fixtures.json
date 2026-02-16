@@ -59,9 +59,9 @@
     },
     {
       "id": "plaid-openbanking-sepa-intent",
-      "query": "open banking sepa payment initiation setup",
+      "query": "payment initiation one-time add to app europe",
       "top_k": 8,
-      "max_rank": 4,
+      "max_rank": 3,
       "filters": {
         "sources": ["plaid"],
         "version": "latest",
@@ -69,7 +69,7 @@
       },
       "expected": {
         "source": "plaid",
-        "url_contains": "/payment-initiation"
+        "url_contains": "/payment-initiation/payment-initiation-one-time/add-to-app"
       }
     }
   ]
