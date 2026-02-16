@@ -77,3 +77,41 @@ test("rerankHybridCandidates boosts semantically aligned chunks", () => {
 
   assert.equal(response.results[0]?.chunk_id, "b");
 });
+
+test("rerankHybridCandidates penalizes schema-heavy chunks and prefers actionable guidance", () => {
+  const now = new Date().toISOString();
+  const response = rerankHybridCandidates(
+    "how to enable payment initiation in europe",
+    [
+      {
+        chunk_id: "schema",
+        score: 0,
+        text: "error_message string string display_message nullable string request_id string causes array status integer documentation_url string suggested_action string",
+        title: "API - Payment Initiation (Europe)",
+        url: "https://plaid.com/docs/api/products/payment-initiation",
+        source: "plaid",
+        version_tag: "latest",
+        last_changed_at: now,
+        ilike_score: 0.9,
+        fts_score: 0.85,
+        semantic_score: 0.5,
+      },
+      {
+        chunk_id: "guide",
+        score: 0,
+        text: "To enable Payment Initiation in Europe, create a Link token with the payment_initiation product and then create and authorize a payment.",
+        title: "Payment Initiation setup guide",
+        url: "https://plaid.com/docs/payment-initiation",
+        source: "plaid",
+        version_tag: "latest",
+        last_changed_at: now,
+        ilike_score: 0.82,
+        fts_score: 0.8,
+        semantic_score: 0.66,
+      },
+    ],
+    2,
+  );
+
+  assert.equal(response.results[0]?.chunk_id, "guide");
+});

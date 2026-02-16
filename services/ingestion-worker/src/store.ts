@@ -4,7 +4,12 @@ import type { Pool } from "pg";
 
 import { embedTexts, getEmbeddingModelId } from "./embeddings.js";
 import { newId } from "./id.js";
-import type { IngestedDocument, IngestRunResult } from "./adapters/types.js";
+import type {
+  IngestedChunk,
+  IngestedDocument,
+  IngestRunResult,
+  NotModifiedDocument,
+} from "./adapters/types.js";
 
 type PersistStats = {
   inserted_documents: number;
@@ -267,10 +272,10 @@ async function getCurrentDocumentText(db: Pool, documentId: string): Promise<str
 async function replaceChunks(
   db: Pool,
   documentId: string,
-  chunks: string[],
+  chunks: IngestedChunk[],
   validFrom: string,
 ): Promise<number> {
-  const embeddings = await embedTexts(chunks);
+  const embeddings = await embedTexts(chunks.map((chunk) => chunk.text));
   const embeddingModel = embeddings ? getEmbeddingModelId() : null;
 
   await db.query(`DELETE FROM chunk WHERE document_id = $1`, [documentId]);
@@ -286,12 +291,23 @@ async function replaceChunks(
           chunk_index,
           text,
           token_count,
+          heading_path,
+          code_lang,
           valid_from,
           valid_to
         )
-        VALUES ($1, $2, $3, $4, $5, $6::timestamptz, NULL)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, NULL)
       `,
-      [chunkId, documentId, index, chunk, estimateTokenCount(chunk), validFrom],
+      [
+        chunkId,
+        documentId,
+        index,
+        chunk.text,
+        estimateTokenCount(chunk.text),
+        chunk.heading_path ?? null,
+        chunk.code_lang ?? null,
+        validFrom,
+      ],
     );
 
     const embedding = embeddings?.[index] ?? null;
@@ -336,9 +352,13 @@ async function persistDocument(
           first_seen_at,
           last_seen_at,
           last_changed_at,
-          content_hash
+          content_hash,
+          fetch_etag,
+          fetch_last_modified,
+          fetch_last_status,
+          fetch_last_checked_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz, $7::timestamptz, $7::timestamptz, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz, $7::timestamptz, $7::timestamptz, $8, $9, $10, $11, $12::timestamptz)
       `,
       [
         documentId,
@@ -349,6 +369,10 @@ async function persistDocument(
         doc.language,
         ingestedAt,
         contentHash,
+        doc.fetch?.etag ?? null,
+        doc.fetch?.last_modified ?? null,
+        doc.fetch?.status ?? null,
+        doc.fetch?.checked_at ?? ingestedAt,
       ],
     );
 
@@ -382,10 +406,25 @@ async function persistDocument(
         language = $3,
         last_seen_at = $4::timestamptz,
         last_changed_at = CASE WHEN $5 THEN $4::timestamptz ELSE last_changed_at END,
-        content_hash = CASE WHEN $5 THEN $6 ELSE content_hash END
+        content_hash = CASE WHEN $5 THEN $6 ELSE content_hash END,
+        fetch_etag = COALESCE($7, fetch_etag),
+        fetch_last_modified = COALESCE($8, fetch_last_modified),
+        fetch_last_status = COALESCE($9, fetch_last_status),
+        fetch_last_checked_at = $10::timestamptz
       WHERE id = $1
     `,
-    [existing.id, doc.title, doc.language, ingestedAt, changed, contentHash],
+    [
+      existing.id,
+      doc.title,
+      doc.language,
+      ingestedAt,
+      changed,
+      contentHash,
+      doc.fetch?.etag ?? null,
+      doc.fetch?.last_modified ?? null,
+      doc.fetch?.status ?? null,
+      doc.fetch?.checked_at ?? ingestedAt,
+    ],
   );
 
   if (!changed) {
@@ -406,6 +445,38 @@ async function persistDocument(
   );
 
   return { changed: true, chunks_inserted: chunksInserted, change_events: changeEvents };
+}
+
+async function touchNotModifiedDocuments(
+  db: Pool,
+  sourceId: string,
+  notModifiedDocuments: NotModifiedDocument[],
+  ingestedAt: string,
+): Promise<void> {
+  for (const doc of notModifiedDocuments) {
+    await db.query(
+      `
+        UPDATE document
+        SET
+          last_seen_at = $3::timestamptz,
+          fetch_etag = COALESCE($4, fetch_etag),
+          fetch_last_modified = COALESCE($5, fetch_last_modified),
+          fetch_last_status = COALESCE($6, fetch_last_status),
+          fetch_last_checked_at = $7::timestamptz
+        WHERE source_id = $1
+          AND canonical_url = $2
+      `,
+      [
+        sourceId,
+        doc.canonical_url,
+        ingestedAt,
+        doc.fetch?.etag ?? null,
+        doc.fetch?.last_modified ?? null,
+        doc.fetch?.status ?? 304,
+        doc.fetch?.checked_at ?? ingestedAt,
+      ],
+    );
+  }
 }
 
 export async function persistIngestRun(
@@ -434,6 +505,8 @@ export async function persistIngestRun(
     stats.inserted_chunks += saved.chunks_inserted;
     stats.change_events += saved.change_events;
   }
+
+  await touchNotModifiedDocuments(db, sourceId, run.not_modified_documents, ingestedAt);
 
   return stats;
 }

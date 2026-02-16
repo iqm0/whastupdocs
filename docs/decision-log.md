@@ -334,3 +334,19 @@ Impact:
 - Added `plaid` source adapter and registry seeds.
 - Added `docs/packs/plaid-finance-map.md` for product topology and integration workflows.
 - Updated payments/identity pack defaults to include Plaid.
+
+## 2026-02-16 - Conditional-fetch ingestion + structure-aware chunk persistence
+Decision:
+Upgrade crawler ingestion to:
+1) use conditional HTTP requests (`If-None-Match` / `If-Modified-Since`) with document-level fetch metadata,
+2) persist structure-aware chunk metadata (`heading_path`, `code_lang`) and preserve code fences from source HTML,
+3) improve retrieval answerability with generic query expansion and concise evidence synthesis.
+
+Why:
+Large doc surfaces change unevenly; re-fetching/re-chunking unchanged pages wastes cost and time. LLM and agent reliability also depends on chunk structure quality and instruction-rich evidence selection, not raw schema blobs.
+
+Impact:
+- Added migration `db/migrations/0006_document_fetch_metadata.sql`.
+- Ingestion worker now stores and reuses document fetch metadata (`etag`, `last-modified`, status, checked_at) and tracks `304` not-modified pages.
+- Chunk persistence now writes `heading_path` and `code_lang` into `chunk`.
+- Query API retrieval now includes provider-agnostic query expansion and improved concise answer composition from high-signal lines.

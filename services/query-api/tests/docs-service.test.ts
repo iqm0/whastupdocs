@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { Pool } from "pg";
 
-import { answerQuestion } from "../src/lib/docs-service.js";
+import { answerQuestion, searchDocsWithPolicy } from "../src/lib/docs-service.js";
 
 function createFakeDb(rows: Array<Record<string, unknown>>): Pool {
   return {
@@ -93,4 +93,69 @@ test("answerQuestion returns policy_blocked when tenant source policy excludes a
 
   assert.equal(response.decision.status, "policy_blocked");
   assert.ok(response.warnings.includes("policy_blocked"));
+});
+
+test("answerQuestion prefers actionable lines over schema-like fragments", async () => {
+  const now = new Date().toISOString();
+  const db = createFakeDb([
+    {
+      chunk_id: "chunk-1",
+      text: "error_message string string\ndisplay_message nullable string\nrequest_id string",
+      title: "API - Payment Initiation (Europe)",
+      url: "https://plaid.com/docs/api/products/payment-initiation",
+      source: "plaid",
+      version_tag: "latest",
+      last_changed_at: now,
+      ilike_score: 0.9,
+      fts_score: 0.8,
+    },
+    {
+      chunk_id: "chunk-2",
+      text: "To enable Payment Initiation in Europe, create a Link token with payment_initiation and then authorize a payment.",
+      title: "Payment Initiation setup",
+      url: "https://plaid.com/docs/payment-initiation",
+      source: "plaid",
+      version_tag: "latest",
+      last_changed_at: now,
+      ilike_score: 0.82,
+      fts_score: 0.79,
+    },
+  ]);
+
+  const response = await answerQuestion(db, {
+    question: "How do I enable payment initiation in Europe?",
+    max_citations: 2,
+    style: "concise",
+  });
+
+  assert.equal(response.decision.status, "grounded");
+  assert.match(response.answer, /enable Payment Initiation in Europe/i);
+  assert.doesNotMatch(response.answer, /error_message string string/i);
+});
+
+test("searchDocsWithPolicy expands intent terms for lexical retrieval", async () => {
+  let capturedValues: unknown[] = [];
+  const db = {
+    query: async (_sql: string, values?: unknown[]) => {
+      capturedValues = values ?? [];
+      return { rows: [] };
+    },
+  } as unknown as Pool;
+
+  await searchDocsWithPolicy(
+    db,
+    {
+      query: "how to enable payment initiation in europe",
+      top_k: 3,
+      filters: { sources: ["plaid"] },
+    },
+    {},
+  );
+
+  const expanded = capturedValues.find(
+    (value): value is string => typeof value === "string" && value.includes("payment_initiation"),
+  );
+  assert.ok(expanded);
+  assert.match(expanded, /\bsetup\b/);
+  assert.match(expanded, /\beu\b/);
 });

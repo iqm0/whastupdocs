@@ -2,6 +2,7 @@ import { Worker, type Job } from "bullmq";
 
 import { getSourceAdapter } from "./adapters/index.js";
 import type { IngestRunResult } from "./adapters/types.js";
+import type { SourceAdapterContext } from "./adapters/types.js";
 import { closeDbPool, getDbPool } from "./db.js";
 import { newId } from "./id.js";
 import { notifySlackChanges } from "./notifications.js";
@@ -63,6 +64,7 @@ function summarizeRawRef(run: IngestRunResult, requestId: string): string {
 }
 
 async function runSourceAdapter(
+  db: ReturnType<typeof getDbPool>,
   source: string,
   sourceConfig?: SourceRegistryEntry,
 ): Promise<IngestRunResult> {
@@ -73,13 +75,36 @@ async function runSourceAdapter(
       source,
       status: "partial",
       documents: [],
+      not_modified_documents: [],
       fetched_urls: [],
       failed_urls: [],
       errors: ["adapter_not_configured"],
     };
   }
 
-  return adapter(sourceConfig);
+  const result = await db.query(
+    `
+      SELECT canonical_url, fetch_etag, fetch_last_modified
+      FROM document
+      WHERE source_id = $1
+        AND (fetch_etag IS NOT NULL OR fetch_last_modified IS NOT NULL)
+    `,
+    [source],
+  );
+
+  const conditionalHeaders: SourceAdapterContext["conditional_headers"] = {};
+  for (const row of result.rows) {
+    const canonicalUrl = String(row.canonical_url ?? "");
+    if (!canonicalUrl) {
+      continue;
+    }
+    conditionalHeaders[canonicalUrl] = {
+      etag: row.fetch_etag ? String(row.fetch_etag) : undefined,
+      last_modified: row.fetch_last_modified ? String(row.fetch_last_modified) : undefined,
+    };
+  }
+
+  return adapter(sourceConfig, { conditional_headers: conditionalHeaders });
 }
 
 async function processSourceSync(
@@ -102,7 +127,7 @@ async function processSourceSync(
   try {
     await upsertSource(source, sourceConfig);
 
-    const run = await runSourceAdapter(source, sourceConfig);
+    const run = await runSourceAdapter(db, source, sourceConfig);
     const ingestedAt = nowIso();
 
     const stats = await persistIngestRun(db, source, run, ingestedAt);

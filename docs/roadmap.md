@@ -25,6 +25,8 @@ Status: In Progress
 - [x] Build crawler-based ingestion adapter framework
 - [x] Add adapters for OpenAI, Next.js, Stripe, React
 - [x] Persist documents/chunks to Postgres
+- [x] Add conditional HTTP fetch support (ETag/Last-Modified + 304 short-circuit)
+- [x] Persist structured chunk metadata (`heading_path`, `code_lang`) for retrieval
 - [ ] Add robust per-source parsing rules (beyond generic HTML extraction)
 - [ ] Add retry budgets, circuit breakers, and source-specific backoff policy
 
@@ -101,3 +103,4 @@ Status: In Progress
 - [x] Add source-specific parsing upgrades for JS-heavy and noisy docs sites
 - [x] Package change events into prescriptive migration/action recommendations
 - [x] Publish ICP-specific wedge pack (payments/identity first) with opinionated defaults
+- [x] Add generic query expansion and concise answer synthesis for intent-rich grounding

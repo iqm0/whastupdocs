@@ -125,6 +125,18 @@
   - added Plaid crawler adapter and source registry entry (`plaid`)
   - seeded Plaid docs paths for quickstart, API, auth, transactions, and assets
   - added Plaid documentation topology map and integration-path playbook
+- Added conditional-fetch ingestion metadata flow:
+  - crawler now sends `If-None-Match` and `If-Modified-Since` when prior metadata exists
+  - ingestion records `304 not modified` responses and updates `last_seen_at` without re-chunking
+  - migration `db/migrations/0006_document_fetch_metadata.sql` adds fetch metadata columns on `document`
+- Added structure-aware chunk enrichment for LLM/agent retrieval:
+  - crawler now preserves fenced code blocks from `<pre><code>` content
+  - chunk pipeline emits metadata-aware chunks with `heading_path` and `code_lang`
+  - chunk persistence now stores `heading_path` and `code_lang` on `chunk` rows
+- Improved generic retrieval quality for natural-language developer prompts:
+  - added provider-agnostic query expansion terms for lexical candidate generation
+  - reranker now penalizes schema-heavy/noise chunks and boosts phrase-level intent coverage
+  - concise answer composer now selects actionable evidence lines from top grounded chunks
 
 ### Validation snapshots
 

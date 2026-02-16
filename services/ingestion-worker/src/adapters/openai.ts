@@ -3,6 +3,7 @@ import { createCrawlerAdapter } from "./crawl.js";
 export {
   canonicalizeUrl,
   chunkText,
+  chunkStructuredText,
   detectPromptInjectionSignals,
   extractLinks,
   extractMainHtml,
@@ -13,6 +14,7 @@ export {
   sanitizePromptInjectionLines,
   stripHtmlNoise,
   stripNoiseLines,
+  splitStructuredSections,
   splitIntoSections,
 } from "./crawl.js";
 

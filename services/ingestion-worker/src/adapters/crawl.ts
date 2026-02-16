@@ -1,4 +1,9 @@
-import type { IngestRunResult, SourceAdapter } from "./types.js";
+import type {
+  IngestedChunk,
+  IngestRunResult,
+  SourceAdapter,
+  SourceAdapterContext,
+} from "./types.js";
 
 const DEFAULT_TIMEOUT_MS = 10000;
 const DEFAULT_MAX_PAGES = 20;
@@ -79,6 +84,20 @@ export type CrawlPolicy = {
   lineNoisePatterns?: RegExp[];
 };
 
+type StructuredSection = {
+  heading_path?: string;
+  text: string;
+  code_lang?: string;
+};
+
+type FetchResponsePayload = {
+  status: number;
+  text: string;
+  etag?: string;
+  last_modified?: string;
+  not_modified: boolean;
+};
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -156,6 +175,20 @@ export function htmlToText(html: string): string {
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, "");
+
+  cleaned = cleaned.replace(
+    /<pre[^>]*>\s*<code([^>]*)>([\s\S]*?)<\/code>\s*<\/pre>/gi,
+    (_match, codeAttrs: string, codeInner: string) => {
+      const classMatch = codeAttrs.match(/class=["'][^"']*language-([a-z0-9_+-]+)[^"']*["']/i);
+      const lang = classMatch?.[1]?.toLowerCase() ?? "";
+      const code = decodeHtmlEntities(codeInner)
+        .replace(/<br\s*\/?\s*>/gi, "\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/\r/g, "")
+        .trim();
+      return `\n\n\`\`\`${lang}\n${code}\n\`\`\`\n\n`;
+    },
+  );
 
   cleaned = cleaned.replace(/<h([1-3])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, _lvl, headingInner) => {
     const headingText = normalizeWhitespace(decodeHtmlEntities(stripTags(headingInner)));
@@ -238,17 +271,64 @@ export function splitIntoSections(text: string): string[] {
   return sections.length > 0 ? sections : [text];
 }
 
-export function chunkText(text: string, maxChars = DEFAULT_MAX_CHARS_PER_CHUNK): string[] {
-  const sections = splitIntoSections(text);
-  const chunks: string[] = [];
+export function splitStructuredSections(text: string): StructuredSection[] {
+  const lines = text.split("\n");
+  const sections: StructuredSection[] = [];
+  let headingPath: string | undefined;
+  let body: string[] = [];
+
+  const flush = (): void => {
+    const normalized = normalizeWhitespace(body.join("\n"));
+    if (!normalized) {
+      return;
+    }
+
+    const langMatch = normalized.match(/```([a-z0-9_+-]+)\n/i);
+    sections.push({
+      heading_path: headingPath,
+      text: normalized,
+      code_lang: langMatch?.[1]?.toLowerCase(),
+    });
+  };
+
+  for (const line of lines) {
+    if (line.startsWith("## ")) {
+      if (body.length > 0) {
+        flush();
+      }
+      headingPath = line.slice(3).trim() || undefined;
+      body = [line];
+      continue;
+    }
+    body.push(line);
+  }
+
+  if (body.length > 0) {
+    flush();
+  }
+
+  return sections.length > 0 ? sections : [{ text: normalizeWhitespace(text) }];
+}
+
+export function chunkStructuredText(
+  text: string,
+  maxChars = DEFAULT_MAX_CHARS_PER_CHUNK,
+): IngestedChunk[] {
+  const sections = splitStructuredSections(text);
+  const chunks: IngestedChunk[] = [];
 
   for (const section of sections) {
-    if (section.length <= maxChars) {
-      chunks.push(section);
+    const sectionText = section.text;
+    if (sectionText.length <= maxChars) {
+      chunks.push({
+        text: sectionText,
+        heading_path: section.heading_path,
+        code_lang: section.code_lang,
+      });
       continue;
     }
 
-    const paragraphs = section
+    const paragraphs = sectionText
       .split(/\n\n+/)
       .map((item) => item.trim())
       .filter(Boolean);
@@ -257,19 +337,31 @@ export function chunkText(text: string, maxChars = DEFAULT_MAX_CHARS_PER_CHUNK):
     for (const paragraph of paragraphs) {
       if (paragraph.length > maxChars) {
         if (current) {
-          chunks.push(current.trim());
+          chunks.push({
+            text: current.trim(),
+            heading_path: section.heading_path,
+            code_lang: section.code_lang,
+          });
           current = "";
         }
 
         for (let i = 0; i < paragraph.length; i += maxChars) {
-          chunks.push(paragraph.slice(i, i + maxChars));
+          chunks.push({
+            text: paragraph.slice(i, i + maxChars),
+            heading_path: section.heading_path,
+            code_lang: section.code_lang,
+          });
         }
         continue;
       }
 
       const next = current ? `${current}\n\n${paragraph}` : paragraph;
       if (next.length > maxChars) {
-        chunks.push(current.trim());
+        chunks.push({
+          text: current.trim(),
+          heading_path: section.heading_path,
+          code_lang: section.code_lang,
+        });
         current = paragraph;
       } else {
         current = next;
@@ -277,11 +369,19 @@ export function chunkText(text: string, maxChars = DEFAULT_MAX_CHARS_PER_CHUNK):
     }
 
     if (current.trim()) {
-      chunks.push(current.trim());
+      chunks.push({
+        text: current.trim(),
+        heading_path: section.heading_path,
+        code_lang: section.code_lang,
+      });
     }
   }
 
   return chunks;
+}
+
+export function chunkText(text: string, maxChars = DEFAULT_MAX_CHARS_PER_CHUNK): string[] {
+  return chunkStructuredText(text, maxChars).map((chunk) => chunk.text);
 }
 
 export function detectPromptInjectionSignals(value: string): string[] {
@@ -419,7 +519,8 @@ async function fetchTextWithRetry(
   retries: number,
   retryBackoffMs: number,
   userAgent: string,
-): Promise<string> {
+  conditions?: { etag?: string; last_modified?: string },
+): Promise<FetchResponsePayload> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
@@ -431,14 +532,37 @@ async function fetchTextWithRetry(
         signal: controller.signal,
         headers: {
           "user-agent": userAgent,
+          ...(conditions?.etag ? { "if-none-match": conditions.etag } : {}),
+          ...(conditions?.last_modified
+            ? { "if-modified-since": conditions.last_modified }
+            : {}),
         },
       });
+
+      const etag = response.headers.get("etag") ?? undefined;
+      const lastModified = response.headers.get("last-modified") ?? undefined;
+
+      if (response.status === 304) {
+        return {
+          status: 304,
+          text: "",
+          etag,
+          last_modified: lastModified,
+          not_modified: true,
+        };
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status} for ${url}`);
       }
 
-      return await response.text();
+      return {
+        status: response.status,
+        text: await response.text(),
+        etag,
+        last_modified: lastModified,
+        not_modified: false,
+      };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       if (attempt < retries) {
@@ -463,7 +587,7 @@ function getCandidateUrls(source: {
 }
 
 export function createCrawlerAdapter(name: string, policy: CrawlPolicy = {}): SourceAdapter {
-  return async (source) => {
+  return async (source, context?: SourceAdapterContext) => {
     const timeoutMs = Number(process.env.INGEST_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
     const maxPages = Number(process.env.MAX_INGEST_PAGES ?? DEFAULT_MAX_PAGES);
     const maxDepth = Number(process.env.MAX_CRAWL_DEPTH ?? DEFAULT_MAX_CRAWL_DEPTH);
@@ -476,6 +600,7 @@ export function createCrawlerAdapter(name: string, policy: CrawlPolicy = {}): So
       source: source.id,
       status: "success",
       documents: [],
+      not_modified_documents: [],
       fetched_urls: [],
       failed_urls: [],
       errors: [],
@@ -485,14 +610,14 @@ export function createCrawlerAdapter(name: string, policy: CrawlPolicy = {}): So
 
     if (source.sitemap_url) {
       try {
-        const sitemapXml = await fetchTextWithRetry(
+        const sitemapResponse = await fetchTextWithRetry(
           source.sitemap_url,
           timeoutMs,
           retries,
           retryBackoffMs,
           userAgent,
         );
-        const sitemapUrls = extractSitemapUrls(sitemapXml, source.base_url, policy);
+        const sitemapUrls = extractSitemapUrls(sitemapResponse.text, source.base_url, policy);
         if (sitemapUrls.length > 0) {
           urls = Array.from(new Set([...urls, ...sitemapUrls]));
         }
@@ -522,7 +647,30 @@ export function createCrawlerAdapter(name: string, policy: CrawlPolicy = {}): So
       seen.add(url);
 
       try {
-        const html = await fetchTextWithRetry(url, timeoutMs, retries, retryBackoffMs, userAgent);
+        const response = await fetchTextWithRetry(
+          url,
+          timeoutMs,
+          retries,
+          retryBackoffMs,
+          userAgent,
+          context?.conditional_headers?.[url],
+        );
+
+        if (response.not_modified) {
+          result.not_modified_documents.push({
+            canonical_url: url,
+            fetch: {
+              etag: response.etag,
+              last_modified: response.last_modified,
+              status: response.status,
+              checked_at: new Date().toISOString(),
+            },
+          });
+          result.fetched_urls.push(url);
+          continue;
+        }
+
+        const html = response.text;
         const title = extractTitle(html, url);
         const mainHtml = extractMainHtml(html);
         const noiseReducedHtml = stripHtmlNoise(mainHtml, policy.htmlNoisePatterns ?? []);
@@ -542,7 +690,7 @@ export function createCrawlerAdapter(name: string, policy: CrawlPolicy = {}): So
         }
 
         if (sanitized.text.length >= minTextChars) {
-          const chunks = chunkText(sanitized.text);
+          const chunks = chunkStructuredText(sanitized.text);
           if (chunks.length > 0) {
             result.fetched_urls.push(url);
             result.documents.push({
@@ -552,6 +700,12 @@ export function createCrawlerAdapter(name: string, policy: CrawlPolicy = {}): So
               version_tag: policy.versionTag ?? "latest",
               content: sanitized.text,
               chunks,
+              fetch: {
+                etag: response.etag,
+                last_modified: response.last_modified,
+                status: response.status,
+                checked_at: new Date().toISOString(),
+              },
             });
           }
         }

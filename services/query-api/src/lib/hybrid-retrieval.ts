@@ -16,12 +16,42 @@ const QUERY_EXPANSIONS: Record<string, string[]> = {
   retry: ["backoff", "idempotency", "timeout"],
 };
 
+const STOPWORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "do",
+  "for",
+  "from",
+  "how",
+  "in",
+  "is",
+  "it",
+  "of",
+  "on",
+  "or",
+  "that",
+  "the",
+  "this",
+  "to",
+  "what",
+  "when",
+  "where",
+  "which",
+  "with",
+]);
+
 function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .map((token) => token.trim())
-    .filter((token) => token.length >= 2);
+    .filter((token) => token.length >= 2 && !STOPWORDS.has(token));
 }
 
 function buildIntentTerms(query: string): Set<string> {
@@ -34,6 +64,15 @@ function buildIntentTerms(query: string): Set<string> {
     }
   }
   return terms;
+}
+
+function buildIntentPhrases(query: string): string[] {
+  const terms = tokenize(query);
+  const phrases = new Set<string>();
+  for (let i = 0; i < terms.length - 1; i += 1) {
+    phrases.add(`${terms[i]} ${terms[i + 1]}`);
+  }
+  return Array.from(phrases);
 }
 
 function computeIntentScore(item: SearchResult, intentTerms: Set<string>): number {
@@ -49,6 +88,45 @@ function computeIntentScore(item: SearchResult, intentTerms: Set<string>): numbe
     }
   }
   return hits / intentTerms.size;
+}
+
+function computePhraseScore(item: SearchResult, intentPhrases: string[]): number {
+  if (intentPhrases.length === 0) {
+    return 0;
+  }
+
+  const haystack = `${item.title} ${item.text} ${item.url}`.toLowerCase();
+  let hits = 0;
+  for (const phrase of intentPhrases) {
+    if (haystack.includes(phrase)) {
+      hits += 1;
+    }
+  }
+  return hits / intentPhrases.length;
+}
+
+function computeSchemaNoisePenalty(text: string): number {
+  const lines = text.split(/\r?\n/);
+  if (lines.length === 0) {
+    return 0;
+  }
+
+  const schemaLikeLines = lines.filter((line) =>
+    /^\s*[a-z0-9_]+\s+(nullable\s+)?(string|integer|number|boolean|array|object)\b/i.test(line.trim())
+  ).length;
+
+  const typeTokenMatches = text.match(/\b(nullable|string|integer|number|boolean|array|object)\b/gi);
+  const typeTokenCount = typeTokenMatches?.length ?? 0;
+
+  const linePenalty = Math.min(1, schemaLikeLines / 6);
+  const tokenPenalty = Math.min(1, typeTokenCount / 45);
+  return linePenalty * 0.7 + tokenPenalty * 0.3;
+}
+
+function computeContentQualityScore(item: SearchResult): number {
+  const text = `${item.title}\n${item.text}`;
+  const penalty = computeSchemaNoisePenalty(text);
+  return Math.max(0, 1 - penalty);
 }
 
 function normalizeByMax(values: number[]): number[] {
@@ -69,6 +147,7 @@ export function rerankHybridCandidates(
   }
 
   const intentTerms = buildIntentTerms(query);
+  const intentPhrases = buildIntentPhrases(query);
   const normalizedFts = normalizeByMax(candidates.map((item) => item.fts_score));
   const semanticShifted = candidates.map((item) =>
     Math.max(0, Math.min(1, ((item.semantic_score ?? 0) + 1) / 2))
@@ -78,14 +157,18 @@ export function rerankHybridCandidates(
 
   const scored = candidates.map((item, idx) => {
     const intentScore = computeIntentScore(item, intentTerms);
+    const phraseScore = computePhraseScore(item, intentPhrases);
+    const qualityScore = computeContentQualityScore(item);
     const ageMinutes = Math.max(0, (now - new Date(item.last_changed_at).getTime()) / 60000);
     const recencyScore = 1 / (1 + ageMinutes / (24 * 60));
     const combined =
-      item.ilike_score * 0.28 +
-      normalizedFts[idx]! * 0.28 +
-      normalizedSemantic[idx]! * 0.32 +
-      intentScore * 0.08 +
-      recencyScore * 0.04;
+      item.ilike_score * 0.22 +
+      normalizedFts[idx]! * 0.24 +
+      normalizedSemantic[idx]! * 0.28 +
+      intentScore * 0.12 +
+      phraseScore * 0.1 +
+      qualityScore * 0.03 +
+      recencyScore * 0.01;
 
     return {
       ...item,

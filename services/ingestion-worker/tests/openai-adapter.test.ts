@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   canonicalizeUrl,
+  chunkStructuredText,
   chunkText,
   detectPromptInjectionSignals,
   extractLinks,
@@ -14,6 +15,7 @@ import {
   sanitizePromptInjectionLines,
   stripHtmlNoise,
   stripNoiseLines,
+  splitStructuredSections,
   splitIntoSections,
 } from "../src/adapters/openai.ts";
 
@@ -37,12 +39,38 @@ test("htmlToText keeps heading markers and removes scripts", () => {
   assert.doesNotMatch(text, /bad\(\)/);
 });
 
+test("htmlToText preserves code fences for pre/code blocks", () => {
+  const html =
+    '<main><h2>Example</h2><pre><code class="language-json">{ "ok": true }</code></pre></main>';
+  const text = htmlToText(html);
+  assert.match(text, /```json/);
+  assert.match(text, /"ok": true/);
+});
+
 test("splitIntoSections separates heading blocks", () => {
   const text = "## One\nA\n\n## Two\nB";
   const sections = splitIntoSections(text);
   assert.equal(sections.length, 2);
   assert.match(sections[0] ?? "", /One/);
   assert.match(sections[1] ?? "", /Two/);
+});
+
+test("splitStructuredSections captures heading path and code language", () => {
+  const text = "## API\nCall endpoint.\n\n```bash\ncurl https://example.com\n```";
+  const sections = splitStructuredSections(text);
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0]?.heading_path, "API");
+  assert.equal(sections[0]?.code_lang, "bash");
+});
+
+test("chunkStructuredText carries section metadata into chunks", () => {
+  const text =
+    "## Auth\nUse OAuth.\n\n```bash\ncurl https://example.com/token\n```\n\n" + "a".repeat(3000);
+  const chunks = chunkStructuredText(text, 900);
+  assert.ok(chunks.length >= 3);
+  assert.ok(chunks.every((chunk) => chunk.text.length <= 900));
+  assert.ok(chunks.some((chunk) => chunk.heading_path === "Auth"));
+  assert.ok(chunks.some((chunk) => chunk.code_lang === "bash"));
 });
 
 test("chunkText splits long paragraph into bounded chunks", () => {

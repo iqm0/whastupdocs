@@ -21,6 +21,47 @@ import type {
 } from "../types.js";
 
 const DEFAULT_STALE_THRESHOLD_MINUTES = 24 * 60;
+const ANSWER_STOPWORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "do",
+  "for",
+  "from",
+  "how",
+  "in",
+  "is",
+  "it",
+  "of",
+  "on",
+  "or",
+  "that",
+  "the",
+  "this",
+  "to",
+  "what",
+  "when",
+  "where",
+  "which",
+  "with",
+]);
+const SEARCH_QUERY_EXPANSIONS: Record<string, string[]> = {
+  enable: ["setup", "configure", "getting_started", "create"],
+  setup: ["enable", "configure", "getting_started"],
+  configure: ["setup", "enable"],
+  payment: ["payments", "payment_initiation"],
+  payments: ["payment", "payment_initiation"],
+  auth: ["authentication", "oauth", "token"],
+  oauth: ["authentication", "token"],
+  europe: ["eu", "uk", "sepa"],
+  eu: ["europe", "sepa"],
+  migrate: ["migration", "deprecation", "upgrade"],
+};
 const PROMPT_INJECTION_PATTERNS: Array<{ id: string; regex: RegExp }> = [
   {
     id: "override_instructions",
@@ -165,6 +206,120 @@ function detectPromptInjectionSignals(value: string): string[] {
   return Array.from(signals);
 }
 
+function tokenizeAnswerTerms(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2 && !ANSWER_STOPWORDS.has(token));
+}
+
+function tokenizeSearchTerms(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9_]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2 && !ANSWER_STOPWORDS.has(token));
+}
+
+function buildExpandedSearchQuery(value: string): string {
+  const terms = tokenizeSearchTerms(value);
+  const expanded = new Set<string>(terms);
+  for (const term of terms) {
+    const synonyms = SEARCH_QUERY_EXPANSIONS[term] ?? [];
+    for (const synonym of synonyms) {
+      expanded.add(synonym);
+    }
+  }
+  return Array.from(expanded).join(" ");
+}
+
+function buildAnswerPhrases(query: string): string[] {
+  const terms = tokenizeAnswerTerms(query);
+  const phrases = new Set<string>();
+  for (let i = 0; i < terms.length - 1; i += 1) {
+    phrases.add(`${terms[i]} ${terms[i + 1]}`);
+  }
+  return Array.from(phrases);
+}
+
+function isSchemaLikeLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (trimmed.length === 0) {
+    return true;
+  }
+  return /^\s*[a-z0-9_]+\s+(nullable\s+)?(string|integer|number|boolean|array|object)\b/i.test(trimmed);
+}
+
+function scoreAnswerLine(line: string, terms: string[], phrases: string[]): number {
+  if (line.length < 25 || line.length > 280 || isSchemaLikeLine(line)) {
+    return 0;
+  }
+
+  const normalized = line.toLowerCase();
+  const termHits = terms.filter((term) => normalized.includes(term)).length;
+  const phraseHits = phrases.filter((phrase) => normalized.includes(phrase)).length;
+  const endpointBonus = /\/[a-z0-9_/-]+/.test(line) ? 0.1 : 0;
+  const instructionBonus = /\b(create|call|enable|set|pass|must|should|configure|authorize|use)\b/i.test(line)
+    ? 0.1
+    : 0;
+
+  return termHits / Math.max(1, terms.length) + phraseHits * 0.3 + endpointBonus + instructionBonus;
+}
+
+function composeConciseGroundedAnswer(
+  question: string,
+  results: Array<SearchResponse["results"][number]>,
+): string {
+  const terms = tokenizeAnswerTerms(question);
+  const phrases = buildAnswerPhrases(question);
+  const ranked: Array<{ text: string; score: number }> = [];
+
+  for (const result of results.slice(0, 3)) {
+    const segments = result.text
+      .split(/\r?\n|(?<=[.!?])\s+/)
+      .map((line) => line.replace(/\s+/g, " ").trim())
+      .filter((line) => line.length > 0);
+
+    for (const segment of segments) {
+      const score = scoreAnswerLine(segment, terms, phrases);
+      if (score > 0) {
+        ranked.push({ text: segment, score });
+      }
+    }
+  }
+
+  ranked.sort((a, b) => b.score - a.score);
+  const seen = new Set<string>();
+  const chosen: string[] = [];
+  let total = 0;
+
+  for (const candidate of ranked) {
+    const key = candidate.text.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+
+    const projected = total + candidate.text.length + (chosen.length > 0 ? 1 : 0);
+    if (projected > 900) {
+      continue;
+    }
+
+    seen.add(key);
+    chosen.push(candidate.text);
+    total = projected;
+    if (chosen.length >= 4) {
+      break;
+    }
+  }
+
+  if (chosen.length > 0) {
+    return chosen.join("\n");
+  }
+
+  return results[0]?.text ?? "";
+}
+
 function buildRecommendedActions(change: {
   source: string;
   event_type: ChangeEvent["event_type"];
@@ -292,6 +447,8 @@ export async function searchDocsWithPolicy(
   const likeIndex = values.length;
   values.push(payload.query);
   const plainQueryIndex = values.length;
+  values.push(buildExpandedSearchQuery(payload.query));
+  const expandedQueryIndex = values.length;
 
   if (effectiveSources && effectiveSources.length > 0) {
     values.push(effectiveSources);
@@ -344,11 +501,13 @@ export async function searchDocsWithPolicy(
           c.text ILIKE $${likeIndex}
           OR d.title ILIKE $${likeIndex}
           OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${plainQueryIndex})
+          OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${expandedQueryIndex})
         )`
       : `WHERE
           c.text ILIKE $${likeIndex}
           OR d.title ILIKE $${likeIndex}
-          OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${plainQueryIndex})`;
+          OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${plainQueryIndex})
+          OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${expandedQueryIndex})`;
 
   const sql = `
     SELECT
@@ -357,10 +516,16 @@ export async function searchDocsWithPolicy(
         CASE WHEN c.text ILIKE $${likeIndex} THEN 0.8 ELSE 0 END +
         CASE WHEN d.title ILIKE $${likeIndex} THEN 0.2 ELSE 0 END
       )::float8 AS ilike_score,
-      ts_rank_cd(
-        to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')),
-        plainto_tsquery('english', $${plainQueryIndex})
-      )::float8 AS fts_score,
+      GREATEST(
+        ts_rank_cd(
+          to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')),
+          plainto_tsquery('english', $${plainQueryIndex})
+        )::float8,
+        ts_rank_cd(
+          to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')),
+          plainto_tsquery('english', $${expandedQueryIndex})
+        )::float8
+      ) AS fts_score,
       c.text,
       d.title,
       d.canonical_url AS url,
@@ -524,15 +689,16 @@ export async function answerQuestion(
   }
 
   const top = effectiveResults[0]!;
+  const conciseAnswer = composeConciseGroundedAnswer(payload.question, effectiveResults);
   const answer =
     payload.style === "detailed"
       ? [
           `Primary guidance from ${top.source}:`,
-          top.text,
+          conciseAnswer,
           "",
           "This response is grounded in indexed source content.",
         ].join("\n")
-      : top.text;
+      : conciseAnswer;
 
   const status: DecisionEnvelope["status"] = hasConflict
     ? "conflict_detected"
