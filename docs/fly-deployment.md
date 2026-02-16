@@ -118,6 +118,12 @@ Keep one worker machine running:
 fly scale count 1 --app wud-ingestion-worker-prod
 ```
 
+Recommended baseline memory for ingestion worker:
+
+```bash
+fly scale memory 512 --app wud-ingestion-worker-prod
+```
+
 ## 5) Smoke test cloud flow
 
 Trigger sync:
@@ -238,3 +244,29 @@ npm run slack:test -- --source slack-onboarding
 3. Keep tool mode compact-first (`docs_preflight`, then `search_docs`/`answer_with_sources` as needed).
 
 This gives local inference privacy while retaining fresh, cited docs retrieval.
+
+## OOM incident runbook (ingestion worker)
+
+Check for recent OOM signals (read-only):
+
+```bash
+npm run ops:check-oom -- --app wud-ingestion-worker-prod --window-minutes 30 --threshold 1 --scale-to-mb 768
+```
+
+If OOMs breach threshold, apply memory scaling:
+
+```bash
+npm run ops:check-oom -- --app wud-ingestion-worker-prod --window-minutes 30 --threshold 1 --scale-to-mb 768 --apply
+```
+
+Manual equivalent:
+
+```bash
+fly scale memory 768 --app wud-ingestion-worker-prod
+```
+
+Post-remediation verification:
+
+```bash
+fly logs --app wud-ingestion-worker-prod --no-tail | rg -i 'oom|completed job|failed job' | tail -n 40
+```

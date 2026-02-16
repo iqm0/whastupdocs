@@ -142,6 +142,10 @@
   - concise answer extraction now suppresses dashboard/log-only lines and prefers actionable steps
   - retrieval evaluation now supports fixture `max_rank` targets in local eval and CI gate
   - added Plaid/OpenBanking-intent fixtures to `scripts/eval/retrieval-fixtures.json`
+- Added ingestion-worker OOM operations runbook and helper script:
+  - `scripts/ops/check-fly-oom.mjs` supports threshold checks with safe read-only default
+  - optional explicit remediation mode (`--apply --scale-to-mb <n>`) executes Fly memory scaling
+  - deployment playbook updated with baseline memory and post-remediation verification flow
 
 ### Validation snapshots
 
