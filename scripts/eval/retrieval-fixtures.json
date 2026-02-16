@@ -32,7 +32,7 @@
       "id": "nextjs-routing-docs",
       "query": "nextjs app router routing pages and segments",
       "top_k": 8,
-      "max_rank": 3,
+      "max_rank": 4,
       "filters": {
         "sources": ["nextjs"],
         "version": "latest"

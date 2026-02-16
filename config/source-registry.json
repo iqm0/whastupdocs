@@ -3,13 +3,12 @@
     "id": "openai",
     "name": "OpenAI",
     "kind": "api_ref",
-    "base_url": "https://platform.openai.com/docs",
-    "sitemap_url": "https://platform.openai.com/sitemap.xml",
+    "base_url": "https://developers.openai.com/api/docs",
     "seed_urls": [
-      "https://platform.openai.com/docs/overview",
-      "https://platform.openai.com/docs/guides/text",
-      "https://platform.openai.com/docs/guides/reasoning",
-      "https://platform.openai.com/docs/guides/tools"
+      "https://developers.openai.com/api/docs",
+      "https://developers.openai.com/api/docs/guides/text",
+      "https://developers.openai.com/api/docs/guides/reasoning",
+      "https://developers.openai.com/api/docs/guides/tools"
     ],
     "trust_score": 1.0,
     "poll_interval_minutes": 30
@@ -50,7 +49,6 @@
     "name": "Stripe",
     "kind": "api_ref",
     "base_url": "https://docs.stripe.com",
-    "sitemap_url": "https://docs.stripe.com/sitemap.xml",
     "seed_urls": [
       "https://docs.stripe.com/api",
       "https://docs.stripe.com/payments",

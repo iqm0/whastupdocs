@@ -19,7 +19,9 @@ export {
 } from "./crawl.js";
 
 export const ingestOpenAIDocs = createCrawlerAdapter("openai", {
-  allowPathPrefixes: ["/docs"],
+  allowPathPrefixes: ["/api/docs", "/docs"],
+  maxPages: 50,
+  maxDepth: 1,
   htmlNoisePatterns: [
     /<nav[\s\S]*?<\/nav>/gi,
     /<aside[\s\S]*?<\/aside>/gi,

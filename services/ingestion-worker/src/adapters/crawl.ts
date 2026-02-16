@@ -82,6 +82,8 @@ export type CrawlPolicy = {
   versionTag?: string;
   htmlNoisePatterns?: RegExp[];
   lineNoisePatterns?: RegExp[];
+  maxPages?: number;
+  maxDepth?: number;
 };
 
 type StructuredSection = {
@@ -589,8 +591,8 @@ function getCandidateUrls(source: {
 export function createCrawlerAdapter(name: string, policy: CrawlPolicy = {}): SourceAdapter {
   return async (source, context?: SourceAdapterContext) => {
     const timeoutMs = Number(process.env.INGEST_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
-    const maxPages = Number(process.env.MAX_INGEST_PAGES ?? DEFAULT_MAX_PAGES);
-    const maxDepth = Number(process.env.MAX_CRAWL_DEPTH ?? DEFAULT_MAX_CRAWL_DEPTH);
+    const maxPages = policy.maxPages ?? Number(process.env.MAX_INGEST_PAGES ?? DEFAULT_MAX_PAGES);
+    const maxDepth = policy.maxDepth ?? Number(process.env.MAX_CRAWL_DEPTH ?? DEFAULT_MAX_CRAWL_DEPTH);
     const retries = Number(process.env.FETCH_RETRIES ?? DEFAULT_FETCH_RETRIES);
     const retryBackoffMs = Number(process.env.RETRY_BACKOFF_MS ?? DEFAULT_RETRY_BACKOFF_MS);
     const minTextChars = policy.minTextChars ?? 120;

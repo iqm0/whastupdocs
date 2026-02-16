@@ -13,6 +13,9 @@ import type { SourceSyncJob } from "./types.js";
 
 const SOURCE_SYNC_QUEUE = "source-sync";
 const PARSER_VERSION = "ingestion-worker@0.3.0";
+const DEFAULT_WORKER_CONCURRENCY = 1;
+const DEFAULT_LOCK_DURATION_MS = 5 * 60 * 1000;
+const DEFAULT_STALLED_INTERVAL_MS = 60 * 1000;
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -201,7 +204,16 @@ async function main(): Promise<void> {
     },
     {
       connection: getRedisConnectionOptions(),
-      concurrency: 3,
+      concurrency: Number(
+        process.env.INGEST_WORKER_CONCURRENCY ?? DEFAULT_WORKER_CONCURRENCY,
+      ),
+      lockDuration: Number(
+        process.env.INGEST_WORKER_LOCK_DURATION_MS ?? DEFAULT_LOCK_DURATION_MS,
+      ),
+      stalledInterval: Number(
+        process.env.INGEST_WORKER_STALLED_INTERVAL_MS ?? DEFAULT_STALLED_INTERVAL_MS,
+      ),
+      maxStalledCount: 2,
     },
   );
 

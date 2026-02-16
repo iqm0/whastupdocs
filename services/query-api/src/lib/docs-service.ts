@@ -234,6 +234,14 @@ function buildExpandedSearchQuery(value: string): string {
   return Array.from(expanded).join(" ");
 }
 
+function buildDisjunctiveTsQuery(value: string): string {
+  const terms = tokenizeSearchTerms(value);
+  if (terms.length === 0) {
+    return "";
+  }
+  return terms.join(" | ");
+}
+
 function buildAnswerPhrases(query: string): string[] {
   const terms = tokenizeAnswerTerms(query);
   const phrases = new Set<string>();
@@ -490,6 +498,8 @@ export async function searchDocsWithPolicy(
   const plainQueryIndex = values.length;
   values.push(buildExpandedSearchQuery(payload.query));
   const expandedQueryIndex = values.length;
+  values.push(buildDisjunctiveTsQuery(payload.query));
+  const disjunctiveQueryIndex = values.length;
 
   if (effectiveSources && effectiveSources.length > 0) {
     values.push(effectiveSources);
@@ -543,12 +553,14 @@ export async function searchDocsWithPolicy(
           OR d.title ILIKE $${likeIndex}
           OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${plainQueryIndex})
           OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${expandedQueryIndex})
+          OR ($${disjunctiveQueryIndex} <> '' AND to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ to_tsquery('english', $${disjunctiveQueryIndex}))
         )`
       : `WHERE
           c.text ILIKE $${likeIndex}
           OR d.title ILIKE $${likeIndex}
           OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${plainQueryIndex})
-          OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${expandedQueryIndex})`;
+          OR to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ plainto_tsquery('english', $${expandedQueryIndex})
+          OR ($${disjunctiveQueryIndex} <> '' AND to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')) @@ to_tsquery('english', $${disjunctiveQueryIndex}))`;
 
   const sql = `
     SELECT
@@ -565,7 +577,14 @@ export async function searchDocsWithPolicy(
         ts_rank_cd(
           to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')),
           plainto_tsquery('english', $${expandedQueryIndex})
-        )::float8
+        )::float8,
+        CASE
+          WHEN $${disjunctiveQueryIndex} = '' THEN 0::float8
+          ELSE ts_rank_cd(
+            to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')),
+            to_tsquery('english', $${disjunctiveQueryIndex})
+          )::float8
+        END
       ) AS fts_score,
       c.text,
       c.heading_path,
