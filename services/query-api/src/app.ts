@@ -21,6 +21,18 @@ export type BuildAppOptions = {
 };
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
+  const boolEnv = (name: string, fallback: boolean) => {
+    const raw = process.env[name];
+    if (!raw) return fallback;
+    return ["1", "true", "yes", "on"].includes(raw.toLowerCase());
+  };
+
+  // Operator-only surfaces. Default disabled for managed cloud.
+  const ENABLE_SLACK_RUNTIME = boolEnv("WIUD_ENABLE_SLACK_RUNTIME", false);
+  const ENABLE_ALERTS_API = boolEnv("WIUD_ENABLE_ALERTS_API", false);
+  const ENABLE_METRICS_API = boolEnv("WIUD_ENABLE_METRICS_API", false);
+  const ENABLE_GOVERNANCE_API = boolEnv("WIUD_ENABLE_GOVERNANCE_API", false);
+
   const app = Fastify({
     logger: options.logger
       ? {
@@ -75,7 +87,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       return reply.code(429).send({ error: "rate_limited" });
     }
 
-    if (request.url.startsWith("/v1/slack/")) {
+    if (ENABLE_SLACK_RUNTIME && request.url.startsWith("/v1/slack/")) {
       const tenantId = process.env.WIUD_SLACK_TENANT_ID ?? "default";
       request.wiudContext = {
         tenantId,
@@ -103,12 +115,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await registerSearchRoute(app);
   await registerAnswerRoute(app);
-  await registerAlertRoutes(app);
+  if (ENABLE_ALERTS_API) {
+    await registerAlertRoutes(app);
+  }
   await registerSourceRoutes(app);
   await registerChangeRoutes(app);
-  await registerMetricsRoutes(app);
-  await registerGovernanceRoutes(app);
-  await registerSlackRoutes(app);
+  if (ENABLE_METRICS_API) {
+    await registerMetricsRoutes(app);
+  }
+  if (ENABLE_GOVERNANCE_API) {
+    await registerGovernanceRoutes(app);
+  }
+  if (ENABLE_SLACK_RUNTIME) {
+    await registerSlackRoutes(app);
+  }
 
   app.addHook("onClose", async () => {
     await closeQueue();

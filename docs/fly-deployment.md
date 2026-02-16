@@ -181,6 +181,8 @@ WIUD_MCP_TRANSPORT=streamable-http WIUD_MCP_PORT=3001 npm run dev:mcp
 
 ## 8) Slack onboarding and webhook verification
 
+Operator-only. In the managed cloud these endpoints are disabled by default. Enable with `WIUD_ENABLE_SLACK_RUNTIME=true` and `WIUD_ENABLE_ALERTS_API=true` on the query API.
+
 Set Slack webhook secrets on Fly:
 
 ```bash
@@ -246,6 +248,8 @@ npm run slack:test -- --source slack-onboarding
 This gives local inference privacy while retaining fresh, cited docs retrieval.
 
 ## OOM incident runbook (ingestion worker)
+
+Operator-only. Managed cloud does not expose this surface to end users.
 
 Check for recent OOM signals (read-only):
 
