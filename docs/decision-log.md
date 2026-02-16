@@ -322,3 +322,15 @@ Positioning needs concrete deployable defaults, not only roadmap language.
 Impact:
 - Added `config/packs/payments-identity.json`.
 - Added implementation playbook in `docs/packs/payments-identity.md`.
+
+## 2026-02-16 - Plaid docs mapping as fintech expansion baseline
+Decision:
+Add Plaid as a first-class source adapter and publish a curated Plaid docs coverage map for high-volume fintech integration paths.
+
+Why:
+Fintech teams need broad product and API coverage across Link, Auth, Transactions, and payment-related workflows, with explicit change-monitoring focus.
+
+Impact:
+- Added `plaid` source adapter and registry seeds.
+- Added `docs/packs/plaid-finance-map.md` for product topology and integration workflows.
+- Updated payments/identity pack defaults to include Plaid.

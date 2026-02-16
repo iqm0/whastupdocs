@@ -121,6 +121,10 @@
   - `config/packs/payments-identity.json`
   - `docs/packs/payments-identity.md`
   - includes context defaults, CI gate profile, and onboarding checklist
+- Expanded fintech coverage with Plaid mapping and source onboarding:
+  - added Plaid crawler adapter and source registry entry (`plaid`)
+  - seeded Plaid docs paths for quickstart, API, auth, transactions, and assets
+  - added Plaid documentation topology map and integration-path playbook
 
 ### Validation snapshots
 

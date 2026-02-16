@@ -9,10 +9,12 @@ This pack is the first ICP default profile for fintech/integration teams.
 - Fast detection of payment/auth integration risk from doc changes.
 - Fewer stale or wrong-context agent answers in production workflows.
 - Clear escalation path when deprecations or breaking changes appear.
+- Stronger fintech coverage by default with Plaid + Stripe monitoring.
 
 ## Pack file
 
 - `config/packs/payments-identity.json`
+- `docs/packs/plaid-finance-map.md`
 
 ## Suggested baseline setup
 
@@ -33,7 +35,7 @@ This pack is the first ICP default profile for fintech/integration teams.
 {
   "query": "webhook signature verification and retry behavior",
   "filters": {
-    "sources": ["stripe"],
+    "sources": ["plaid", "stripe"],
     "version": "latest",
     "region": "us",
     "plan": "enterprise",

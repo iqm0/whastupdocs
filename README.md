@@ -195,6 +195,7 @@ Retrieval gate thresholds:
 
 - First wedge pack: `config/packs/payments-identity.json`
 - Playbook: `docs/packs/payments-identity.md`
+- Plaid docs coverage map: `docs/packs/plaid-finance-map.md`
 
 ## License
 

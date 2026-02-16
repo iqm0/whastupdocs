@@ -29,6 +29,23 @@
     "poll_interval_minutes": 60
   },
   {
+    "id": "plaid",
+    "name": "Plaid",
+    "kind": "api_ref",
+    "base_url": "https://plaid.com/docs",
+    "sitemap_url": "https://plaid.com/sitemap.xml",
+    "seed_urls": [
+      "https://plaid.com/docs/",
+      "https://plaid.com/docs/quickstart/",
+      "https://plaid.com/docs/api/",
+      "https://plaid.com/docs/auth/",
+      "https://plaid.com/docs/transactions/",
+      "https://plaid.com/docs/assets/"
+    ],
+    "trust_score": 1.0,
+    "poll_interval_minutes": 60
+  },
+  {
     "id": "stripe",
     "name": "Stripe",
     "kind": "api_ref",

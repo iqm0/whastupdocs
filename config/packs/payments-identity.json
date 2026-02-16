@@ -3,6 +3,7 @@
   "name": "Payments + Identity",
   "description": "Opinionated defaults for fintech and integration-heavy teams handling payment rails, auth, and partner API reliability.",
   "default_sources": [
+    "plaid",
     "stripe",
     "openai"
   ],
@@ -22,6 +23,7 @@
     "question": "What changed in authentication, webhook signatures, and payment flow docs this week?",
     "allow_breaking_default": false,
     "sources": [
+      "plaid",
       "stripe"
     ]
   },
