@@ -1,9 +1,9 @@
 import { createCrawlerAdapter } from "./crawl.js";
 
 export const ingestStripeDocs = createCrawlerAdapter("stripe", {
-  allowPathPrefixes: ["/docs", "/api", "/payments", "/webhooks"],
-  maxPages: 60,
-  maxDepth: 1,
+  allowPathPrefixes: ["/docs", "/api", "/payments", "/webhooks", "/checkout"],
+  maxPages: 100,
+  maxDepth: 2,
   htmlNoisePatterns: [
     /<nav[\s\S]*?<\/nav>/gi,
     /<aside[\s\S]*?<\/aside>/gi,
@@ -14,5 +14,6 @@ export const ingestStripeDocs = createCrawlerAdapter("stripe", {
     /^view as markdown$/i,
     /^copy for llm$/i,
     /^was this page helpful\??$/i,
+    /^on this page$/i,
   ],
 });

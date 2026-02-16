@@ -3,6 +3,8 @@ import { ingestNextJSDocs } from "./nextjs.js";
 import { ingestPlaidDocs } from "./plaid.js";
 import { ingestReactDocs } from "./react.js";
 import { ingestStripeDocs } from "./stripe.js";
+import { ingestOpenBankingUkDocs } from "./openbanking_uk.js";
+import { ingestMdnHttpDocs } from "./mdn_http.js";
 import type { SourceAdapter } from "./types.js";
 
 const adapters: Record<string, SourceAdapter> = {
@@ -11,6 +13,8 @@ const adapters: Record<string, SourceAdapter> = {
   plaid: ingestPlaidDocs,
   stripe: ingestStripeDocs,
   react: ingestReactDocs,
+  "openbanking-uk": ingestOpenBankingUkDocs,
+  "mdn-http": ingestMdnHttpDocs,
 };
 
 export function getSourceAdapter(sourceId: string): SourceAdapter | undefined {

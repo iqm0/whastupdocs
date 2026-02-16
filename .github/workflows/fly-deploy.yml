@@ -1,0 +1,33 @@
+name: Fly Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'services/query-api/**'
+      - 'deploy/fly/query-api/**'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Fly
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy Query API
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy \
+            --config deploy/fly/query-api/fly.toml \
+            --dockerfile deploy/fly/query-api/Dockerfile \
+            --app wud-query-api-prod
+
