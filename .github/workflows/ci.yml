@@ -5,10 +5,21 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  merge_group:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-test:
+  quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,9 +39,12 @@ jobs:
       - name: Test
         run: npm run test
 
+      - name: Audit production dependencies (high+)
+        run: npm audit --omit=dev --audit-level=high
+
   docs-risk-gate:
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: quality
     if: ${{ secrets.WIUD_GATE_BASE_URL != '' }}
     steps:
       - name: Checkout
@@ -48,7 +62,7 @@ jobs:
 
   retrieval-quality-gate:
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: quality
     if: ${{ secrets.WIUD_GATE_BASE_URL != '' }}
     steps:
       - name: Checkout
@@ -63,3 +77,24 @@ jobs:
           WIUD_RETRIEVAL_GATE_MIN_HIT_AT_K: ${{ vars.WIUD_RETRIEVAL_GATE_MIN_HIT_AT_K }}
           WIUD_RETRIEVAL_GATE_MIN_MRR: ${{ vars.WIUD_RETRIEVAL_GATE_MIN_MRR }}
         run: node scripts/ci/retrieval-gate.mjs
+
+  docker-builds:
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: query-api
+            dockerfile: deploy/fly/query-api/Dockerfile
+          - service: mcp-server
+            dockerfile: deploy/fly/mcp-server/Dockerfile
+          - service: ingestion-worker
+            dockerfile: deploy/fly/ingestion-worker/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Docker build (${{ matrix.service }})
+        run: docker build --file "${{ matrix.dockerfile }}" --tag "wiud-${{ matrix.service }}:ci" .
