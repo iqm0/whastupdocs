@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Pool } from "pg";
 
+import { embedTexts, getEmbeddingModelId } from "./embeddings.js";
 import { newId } from "./id.js";
 import type { IngestedDocument, IngestRunResult } from "./adapters/types.js";
 
@@ -269,10 +270,14 @@ async function replaceChunks(
   chunks: string[],
   validFrom: string,
 ): Promise<number> {
+  const embeddings = await embedTexts(chunks);
+  const embeddingModel = embeddings ? getEmbeddingModelId() : null;
+
   await db.query(`DELETE FROM chunk WHERE document_id = $1`, [documentId]);
 
   let inserted = 0;
   for (const [index, chunk] of chunks.entries()) {
+    const chunkId = newId("chk");
     await db.query(
       `
         INSERT INTO chunk (
@@ -286,8 +291,22 @@ async function replaceChunks(
         )
         VALUES ($1, $2, $3, $4, $5, $6::timestamptz, NULL)
       `,
-      [newId("chk"), documentId, index, chunk, estimateTokenCount(chunk), validFrom],
+      [chunkId, documentId, index, chunk, estimateTokenCount(chunk), validFrom],
     );
+
+    const embedding = embeddings?.[index] ?? null;
+    if (embeddingModel && embedding && embedding.length > 0) {
+      await db.query(
+        `
+          INSERT INTO chunk_embedding (chunk_id, model, vector)
+          VALUES ($1, $2, $3::jsonb)
+          ON CONFLICT (chunk_id)
+          DO UPDATE SET model = EXCLUDED.model, vector = EXCLUDED.vector, created_at = NOW()
+        `,
+        [chunkId, embeddingModel, JSON.stringify(embedding)],
+      );
+    }
+
     inserted += 1;
   }
 

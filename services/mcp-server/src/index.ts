@@ -164,6 +164,74 @@ function parseApiKeys(raw: string): string[] {
     .filter(Boolean);
 }
 
+function parseList(raw: string | undefined): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function matchIpPattern(ip: string, pattern: string): boolean {
+  if (pattern === "*") {
+    return true;
+  }
+  if (pattern.endsWith("*")) {
+    return ip.startsWith(pattern.slice(0, -1));
+  }
+  return ip === pattern;
+}
+
+function isIpAllowed(ip: string): boolean {
+  const allowlist = parseList(process.env.WIUD_MCP_IP_ALLOWLIST);
+  if (allowlist.length === 0) {
+    return true;
+  }
+  return allowlist.some((pattern) => matchIpPattern(ip, pattern));
+}
+
+function shouldRequireAuth(configuredApiKeys: string[]): boolean {
+  const explicit = (process.env.WIUD_MCP_REQUIRE_AUTH ?? "").trim().toLowerCase();
+  if (explicit === "true") {
+    return true;
+  }
+  if (explicit === "false") {
+    return false;
+  }
+  if (configuredApiKeys.length > 0) {
+    return true;
+  }
+  return process.env.NODE_ENV === "production" && process.env.WIUD_MCP_ALLOW_ANONYMOUS !== "true";
+}
+
+type Counter = {
+  count: number;
+  resetAt: number;
+};
+
+const counters = new Map<string, Counter>();
+
+function checkAndConsumeRateLimit(key: string): { allowed: boolean; retryAfterSec: number } {
+  const max = Number(process.env.WIUD_MCP_RATE_LIMIT_MAX ?? 0);
+  if (!Number.isFinite(max) || max <= 0) {
+    return { allowed: true, retryAfterSec: 0 };
+  }
+  const windowMs = Math.max(1000, Number(process.env.WIUD_MCP_RATE_LIMIT_WINDOW_MS ?? 60000));
+  const now = Date.now();
+  const existing = counters.get(key);
+  if (!existing || existing.resetAt <= now) {
+    counters.set(key, { count: 1, resetAt: now + windowMs });
+    return { allowed: true, retryAfterSec: 0 };
+  }
+  if (existing.count >= max) {
+    return {
+      allowed: false,
+      retryAfterSec: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
+    };
+  }
+  existing.count += 1;
+  return { allowed: true, retryAfterSec: 0 };
+}
+
 function extractBearerToken(header: string | string[] | undefined): string | null {
   if (!header) {
     return null;
@@ -202,6 +270,10 @@ async function runStreamableHttp(): Promise<void> {
   const port = Number(process.env.PORT ?? process.env.WIUD_MCP_PORT ?? 3001);
   const path = process.env.WIUD_MCP_PATH ?? "/mcp";
   const apiKeys = parseApiKeys(process.env.WIUD_MCP_API_KEYS ?? "");
+  const requireAuth = shouldRequireAuth(apiKeys);
+  if (requireAuth && apiKeys.length === 0) {
+    throw new Error("WIUD_MCP_REQUIRE_AUTH is enabled but WIUD_MCP_API_KEYS is empty");
+  }
 
   const httpServer = createServer(async (req, res) => {
     if (!req.url || !req.method) {
@@ -219,12 +291,34 @@ async function runStreamableHttp(): Promise<void> {
       return;
     }
 
-    if (apiKeys.length > 0) {
-      const token = extractBearerToken(req.headers.authorization);
+    const ip = (req.headers["x-forwarded-for"]?.toString().split(",")[0] ?? req.socket.remoteAddress ?? "unknown").trim();
+    if (!isIpAllowed(ip)) {
+      sendJson(res, 403, { error: "ip_not_allowed" });
+      return;
+    }
+
+    const ipLimit = checkAndConsumeRateLimit(`ip:${ip}`);
+    if (!ipLimit.allowed) {
+      res.setHeader("retry-after", String(ipLimit.retryAfterSec));
+      sendJson(res, 429, { error: "rate_limited" });
+      return;
+    }
+
+    const token = extractBearerToken(req.headers.authorization);
+    if (requireAuth) {
       if (!token || !apiKeys.includes(token)) {
         sendJson(res, 401, { error: "missing_or_invalid_api_token" });
         return;
       }
+      const subjectLimit = checkAndConsumeRateLimit(`subject:${token.slice(0, 8)}:${ip}`);
+      if (!subjectLimit.allowed) {
+        res.setHeader("retry-after", String(subjectLimit.retryAfterSec));
+        sendJson(res, 429, { error: "rate_limited" });
+        return;
+      }
+    } else if (token && apiKeys.length > 0 && !apiKeys.includes(token)) {
+      sendJson(res, 401, { error: "invalid_api_token" });
+      return;
     }
 
     if (!["POST", "GET", "DELETE"].includes(req.method)) {

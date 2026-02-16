@@ -1,5 +1,7 @@
 import type { Pool } from "pg";
 
+import { cosineSimilarity, embedQuery, getEmbeddingModelId, parseStoredEmbedding } from "./embeddings.js";
+import { rerankHybridCandidates } from "./hybrid-retrieval.js";
 import { newId } from "./id.js";
 import { applySourcePolicy, canSyncSource, type TenantPolicy } from "./policy.js";
 import { getSourceSyncQueue } from "./queue.js";
@@ -163,6 +165,62 @@ function detectPromptInjectionSignals(value: string): string[] {
   return Array.from(signals);
 }
 
+type HybridCandidate = {
+  chunk_id: string;
+  score: number;
+  text: string;
+  title: string;
+  url: string;
+  source: string;
+  version_tag: string | null;
+  last_changed_at: string;
+  ilike_score: number;
+  fts_score: number;
+  semantic_score: number;
+};
+
+async function attachSemanticScores(
+  db: Pool,
+  query: string,
+  candidates: HybridCandidate[],
+): Promise<HybridCandidate[]> {
+  if (candidates.length === 0) {
+    return candidates;
+  }
+
+  const queryEmbedding = await embedQuery(query);
+  if (!queryEmbedding) {
+    return candidates;
+  }
+
+  const chunkIds = candidates.map((item) => item.chunk_id);
+  const modelId = getEmbeddingModelId();
+  const result = await db.query(
+    `
+      SELECT chunk_id, vector
+      FROM chunk_embedding
+      WHERE model = $2
+        AND chunk_id = ANY($1::text[])
+    `,
+    [chunkIds, modelId],
+  );
+
+  const vectors = new Map<string, number[]>();
+  for (const row of result.rows) {
+    const chunkId = String(row.chunk_id ?? "");
+    const vector = parseStoredEmbedding(row.vector);
+    if (!chunkId || !vector) {
+      continue;
+    }
+    vectors.set(chunkId, vector);
+  }
+
+  return candidates.map((candidate) => ({
+    ...candidate,
+    semantic_score: cosineSimilarity(queryEmbedding, vectors.get(candidate.chunk_id) ?? []),
+  }));
+}
+
 export async function searchDocs(db: Pool, payload: SearchRequest): Promise<SearchResponse> {
   return searchDocsWithPolicy(db, payload, {});
 }
@@ -173,6 +231,7 @@ export async function searchDocsWithPolicy(
   options: QueryExecutionOptions,
 ): Promise<SearchResponse> {
   const topK = payload.top_k ?? 10;
+  const candidateLimit = Math.max(topK * 5, 25);
   const values: unknown[] = [];
   const where: string[] = [];
   const policy = options.policy ?? {};
@@ -191,6 +250,8 @@ export async function searchDocsWithPolicy(
 
   values.push(toLikeQuery(payload.query));
   const likeIndex = values.length;
+  values.push(payload.query);
+  const plainQueryIndex = values.length;
 
   if (effectiveSources && effectiveSources.length > 0) {
     values.push(effectiveSources);
@@ -234,8 +295,8 @@ export async function searchDocsWithPolicy(
     );
   }
 
-  values.push(topK);
-  const topKIndex = values.length;
+  values.push(candidateLimit);
+  const limitIndex = values.length;
 
   const whereSql =
     where.length > 0
@@ -248,7 +309,11 @@ export async function searchDocsWithPolicy(
       (
         CASE WHEN c.text ILIKE $${likeIndex} THEN 0.8 ELSE 0 END +
         CASE WHEN d.title ILIKE $${likeIndex} THEN 0.2 ELSE 0 END
-      )::float8 AS score,
+      )::float8 AS ilike_score,
+      ts_rank_cd(
+        to_tsvector('english', COALESCE(c.text, '') || ' ' || COALESCE(d.title, '')),
+        plainto_tsquery('english', $${plainQueryIndex})
+      )::float8 AS fts_score,
       c.text,
       d.title,
       d.canonical_url AS url,
@@ -259,24 +324,28 @@ export async function searchDocsWithPolicy(
     INNER JOIN document d ON d.id = c.document_id
     INNER JOIN source s ON s.id = d.source_id
     ${whereSql}
-    ORDER BY score DESC, d.last_changed_at DESC
-    LIMIT $${topKIndex}
+    ORDER BY ilike_score DESC, fts_score DESC, d.last_changed_at DESC
+    LIMIT $${limitIndex}
   `;
 
   const result = await db.query(sql, values);
 
-  return {
-    results: result.rows.map((row) => ({
-      chunk_id: String(row.chunk_id),
-      score: Number(row.score ?? 0),
-      text: String(row.text),
-      title: String(row.title),
-      url: String(row.url),
-      source: String(row.source),
-      version_tag: row.version_tag ? String(row.version_tag) : null,
-      last_changed_at: new Date(row.last_changed_at).toISOString(),
-    })),
-  };
+  const lexicalCandidates: HybridCandidate[] = result.rows.map((row) => ({
+    chunk_id: String(row.chunk_id),
+    score: 0,
+    text: String(row.text),
+    title: String(row.title),
+    url: String(row.url),
+    source: String(row.source),
+    version_tag: row.version_tag ? String(row.version_tag) : null,
+    last_changed_at: new Date(row.last_changed_at).toISOString(),
+    ilike_score: Number(row.ilike_score ?? 0),
+    fts_score: Number(row.fts_score ?? 0),
+    semantic_score: 0,
+  }));
+
+  const candidates = await attachSemanticScores(db, payload.query, lexicalCandidates);
+  return rerankHybridCandidates(payload.query, candidates, topK);
 }
 
 export async function answerQuestion(

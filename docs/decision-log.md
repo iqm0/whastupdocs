@@ -188,3 +188,31 @@ Whole-document keyword matching creates avoidable false positives and weak expla
 Impact:
 - Change events now include changed-section metadata.
 - Added classifier evaluation command and fixtures for regression tracking.
+
+## 2026-02-16 - External review triage and next-step sequence
+Decision:
+Adopt the external review conclusions as a planning checkpoint and prioritize the next implementation wave in this order:
+1) hybrid retrieval quality,
+2) source-specific parsing quality,
+3) action-oriented change intelligence packaging,
+4) ICP wedge packaging (payments/identity first).
+
+Why:
+The review correctly identifies that "docs chat" is commoditized; differentiation depends on reliability outcomes and operational workflows. Current platform controls are strong, but retrieval quality remains the biggest technical limiter.
+
+Impact:
+- Roadmap updated to reflect completed enterprise controls and CI gates.
+- New milestone added for retrieval + wedge depth.
+- Journal now explicitly distinguishes solved controls from remaining quality bottlenecks.
+
+## 2026-02-16 - Embeddings architecture for hybrid retrieval
+Decision:
+Implement semantic retrieval as an optional, provider-agnostic path using normalized embeddings stored in Postgres (`chunk_embedding` as JSON vectors), then fuse cosine similarity with lexical/FTS/intent scores at query time.
+
+Why:
+This delivers immediate semantic lift without requiring pgvector extension operations, while supporting both hosted OpenAI embeddings and local Ollama setups.
+
+Impact:
+- Ingestion can generate chunk embeddings when enabled.
+- Query API can score candidate chunks semantically and rerank with hybrid fusion.
+- Retrieval path remains fail-open to lexical ranking when embeddings are disabled/unavailable.

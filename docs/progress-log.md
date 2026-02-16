@@ -46,6 +46,11 @@
   - `/v1/answer` returns grounded response for indexed query terms
 - Provisioned dedicated queue Redis (`wud-redis-queue-prod`) with no-eviction policy and rotated `REDIS_URL` secrets for query + worker.
 - Added competitive/enterprise risk register and mitigation actions in `docs/risk-register.md`.
+- Added hardened access controls for hosted surfaces:
+  - production fail-closed auth defaults
+  - optional API-key-to-tenant binding (`WIUD_API_KEY_TENANT_MAP_JSON`)
+  - IP allowlist controls for query API and hosted MCP
+  - configurable rate limits for query API and hosted MCP
 - Added hosted endpoint auth controls:
   - Query API bearer auth via `WIUD_API_KEYS`
   - Hosted MCP bearer auth via `WIUD_MCP_API_KEYS`
@@ -63,6 +68,21 @@
   - `services/ingestion-worker/src/store.ts`
   - `services/ingestion-worker/scripts/eval-change-classifier.ts`
   - `scripts/eval/change-classifier-fixtures.json`
+- Triaged external product review and converted it into execution priorities:
+  - Confirmed strategic direction: reliability workflows over generic docs chat
+  - Marked hybrid retrieval and parser quality as highest technical gaps
+  - Added dedicated roadmap milestone for retrieval depth + ICP wedge packaging
+  - Marked already-completed controls (auth, tenant policy, CI gate, telemetry) to avoid duplicate work
+- Started Milestone 11 with hybrid retrieval phase 1:
+  - query API now combines lexical (`ILIKE`) + SQL full-text rank + intent-term reranking
+  - candidate overfetch + fusion ranking added before response slicing
+  - retrieval fusion logic covered by new query-api unit test
+- Completed Milestone 11 hybrid retrieval phase 2:
+  - added semantic embedding storage (`chunk_embedding`) with migration `db/migrations/0005_chunk_embedding.sql`
+  - ingestion worker now optionally generates/stores normalized chunk embeddings (OpenAI or Ollama provider)
+  - query API now optionally computes query embedding and fuses cosine semantic score into hybrid ranking
+  - added env controls for embeddings across query API and ingestion worker
+  - expanded hybrid retrieval tests for semantic-score ranking behavior
 
 ### Validation snapshots
 
@@ -73,8 +93,9 @@
 
 ### In progress
 
-- Improve change detection from keyword heuristics to stronger section-level diffing.
-- Add PR/CI surface for doc drift and breaking-change checks.
+- Add false-positive/false-negative tracking loop for change classification precision.
+- Expand workflow integrations (Slack + IDE UX + production metrics surfaces).
+- Add retrieval quality evaluation set (developer-phrase vs doc-phrase mismatch and regression tracking).
 
 ### Risks observed
 

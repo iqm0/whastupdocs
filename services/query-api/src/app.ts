@@ -2,9 +2,10 @@ import cors from "@fastify/cors";
 import sensible from "@fastify/sensible";
 import Fastify, { type FastifyInstance } from "fastify";
 
+import { checkAndConsumeRateLimit, getClientIp, isIpAllowed } from "./lib/access-control.js";
 import { closeDbPool } from "./lib/db.js";
 import { closeQueue } from "./lib/queue.js";
-import { requireApiAuthIfConfigured, resolveRequestContext } from "./lib/request-context.js";
+import { authorizeRequest, resolveRequestContext } from "./lib/request-context.js";
 import { registerAnswerRoute } from "./routes/answer.js";
 import { registerChangeRoutes } from "./routes/changes.js";
 import { registerMetricsRoutes } from "./routes/metrics.js";
@@ -32,10 +33,29 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(sensible);
 
   app.addHook("onRequest", async (request, reply) => {
-    if (!requireApiAuthIfConfigured(request)) {
-      return reply.unauthorized("missing_or_invalid_api_token");
+    const ip = getClientIp(request);
+    if (!isIpAllowed(ip)) {
+      return reply.forbidden("ip_not_allowed");
     }
-    request.wiudContext = resolveRequestContext(request);
+
+    const ipLimit = checkAndConsumeRateLimit(`ip:${ip}`);
+    if (!ipLimit.allowed) {
+      reply.header("retry-after", String(ipLimit.retryAfterSec));
+      return reply.code(429).send({ error: "rate_limited" });
+    }
+
+    const auth = authorizeRequest(request);
+    if (!auth.ok) {
+      return reply.unauthorized(auth.reason ?? "missing_or_invalid_api_token");
+    }
+
+    const subjectLimit = checkAndConsumeRateLimit(`subject:${auth.authSubject}:${ip}`);
+    if (!subjectLimit.allowed) {
+      reply.header("retry-after", String(subjectLimit.retryAfterSec));
+      return reply.code(429).send({ error: "rate_limited" });
+    }
+
+    request.wiudContext = resolveRequestContext(request, auth);
   });
 
   app.get("/health", async () => ({ status: "ok", service: "query-api" }));

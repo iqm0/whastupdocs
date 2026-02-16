@@ -17,6 +17,7 @@ It continuously ingests official developer documentation and changelogs, indexes
 - `openapi/openapi.yaml`: backend API contract (MVP)
 - `db/migrations/0001_init.sql`: initial PostgreSQL schema
 - `db/migrations/0002_source_sync_request.sql`: source sync request queue tracking
+- `db/migrations/0005_chunk_embedding.sql`: optional semantic embedding storage for chunk retrieval
 - `services/query-api/`: Fastify API scaffold aligned with OpenAPI
 - `services/mcp-server/`: TypeScript MCP server skeleton (`search_docs`, `answer_with_sources`, `check_freshness`)
 - `services/ingestion-worker/`: queue consumer for source sync jobs
@@ -96,13 +97,19 @@ Environment variables:
 
 ## Current Status
 
-This is an initial scaffold focused on planning and core interface contracts. The `query-api` now reads from PostgreSQL and exposes queue-backed source sync. The ingestion worker now includes real adapters for OpenAI, Next.js, Stripe, and React (fetch -> extract -> chunk -> persist). Hybrid retrieval indexing, Slack runtime, and IDE runtime are intentionally not implemented yet.
+This is an early but working baseline. The `query-api` reads from PostgreSQL, supports queue-backed source sync, and uses hybrid retrieval (lexical + full-text + intent + optional semantic embeddings). The ingestion worker includes adapters for OpenAI, Next.js, Stripe, and React (fetch -> extract -> chunk -> persist) and can optionally persist chunk embeddings for semantic rank fusion. Slack runtime and IDE runtime remain open milestones.
 
 The source sync flow is now queue-backed:
 
 1. `POST /v1/sources/sync` writes `source_sync_request` and enqueues BullMQ job.
 2. `ingestion-worker` consumes the job and records a `snapshot`.
 3. `GET /v1/sources` reports freshness from latest snapshots.
+
+Optional semantic retrieval path:
+
+- Enable in both query API and ingestion worker with `WIUD_EMBEDDINGS_ENABLED=true`.
+- Supported providers: OpenAI-compatible embeddings APIs and local Ollama embeddings.
+- If embeddings are disabled or unavailable, ranking gracefully falls back to lexical/FTS/intent fusion.
 
 ## Safety Notes
 
@@ -113,13 +120,22 @@ The source sync flow is now queue-backed:
 ## Multi-Tenant Policy and Auth
 
 - Query API auth is enabled when `WIUD_API_KEYS` is configured (comma-separated bearer tokens).
+- Query API is fail-closed in production by default. To allow anonymous access explicitly, set `WIUD_ALLOW_ANONYMOUS=true`.
 - Tenant context is passed with `x-wiud-tenant-id` (defaults to `default`).
 - Tenant policy controls can be configured with `WIUD_TENANT_POLICIES_JSON`:
   - `allow_sources`
   - `deny_sources`
   - `min_trust_score`
   - `sync_allowed_sources`
+- Optional token-to-tenant binding: `WIUD_API_KEY_TENANT_MAP_JSON` (prevents tenant spoofing via header).
+- Optional Query API network controls:
+  - `WIUD_IP_ALLOWLIST` (comma-separated exact/prefix patterns; `10.0.*`)
+  - `WIUD_RATE_LIMIT_MAX` + `WIUD_RATE_LIMIT_WINDOW_MS`
 - Hosted MCP auth is enabled when `WIUD_MCP_API_KEYS` is configured.
+- Hosted MCP is fail-closed in production by default unless `WIUD_MCP_ALLOW_ANONYMOUS=true`.
+- Optional MCP network controls:
+  - `WIUD_MCP_IP_ALLOWLIST`
+  - `WIUD_MCP_RATE_LIMIT_MAX` + `WIUD_MCP_RATE_LIMIT_WINDOW_MS`
 
 ## CI Gates
 

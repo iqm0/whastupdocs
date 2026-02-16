@@ -76,7 +76,8 @@ Actions:
 - Add audit event store for retrieval calls and policy decisions.
 
 Status:
-- Not implemented (high priority next).
+- Core mitigations implemented (hosted auth, tenant policy controls, rate limiting, IP allowlists).
+- Remaining gap: audit export workflows and enterprise-facing governance reporting.
 
 ## R5: Accuracy/trust failures from stale or wrong-context answers
 Severity: Critical  
@@ -123,12 +124,13 @@ Actions:
 - Prepare security architecture and data handling docs early.
 
 Status:
-- Deployment flexibility exists; enterprise controls pending.
+- Deployment flexibility exists and enterprise baseline controls are active.
+- Remaining work: procurement-facing governance docs and connector compliance packs.
 
 ## Immediate Next Actions (Execution Order)
 
-1. Add auth to hosted `query-api` and hosted MCP endpoint.
-2. Implement tenant-aware policy scaffolding (source allow/deny + thresholds).
-3. Ship CI/PR gate prototype using `/v1/changes` + decision envelope states.
-4. Add section-level diff classifier and evaluation loop for change precision.
+1. Add retrieval quality evaluation set (developer-phrase vs doc-phrase mismatch).
+2. Upgrade source-specific parsers for noisy/JS-heavy docs.
+3. Package change events into prescriptive migration/action recommendations.
+4. Add audit export workflows and policy observability views.
 5. Define legal connector policy templates for public, authenticated, and restricted sources.

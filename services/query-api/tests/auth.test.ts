@@ -53,3 +53,32 @@ test("health accepts valid bearer token when WIUD_API_KEYS is configured", async
 
   assert.equal(response.statusCode, 200);
 });
+
+test("production mode fails closed without api keys unless WIUD_ALLOW_ANONYMOUS=true", async () => {
+  const previousKeys = process.env.WIUD_API_KEYS;
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousAllowAnon = process.env.WIUD_ALLOW_ANONYMOUS;
+  delete process.env.WIUD_API_KEYS;
+  process.env.NODE_ENV = "production";
+  delete process.env.WIUD_ALLOW_ANONYMOUS;
+
+  const app = await buildApp({ logger: false });
+  const blocked = await app.inject({
+    method: "GET",
+    url: "/health",
+  });
+
+  process.env.WIUD_ALLOW_ANONYMOUS = "true";
+  const allowed = await app.inject({
+    method: "GET",
+    url: "/health",
+  });
+
+  await app.close();
+  process.env.WIUD_API_KEYS = previousKeys;
+  process.env.NODE_ENV = previousNodeEnv;
+  process.env.WIUD_ALLOW_ANONYMOUS = previousAllowAnon;
+
+  assert.equal(blocked.statusCode, 401);
+  assert.equal(allowed.statusCode, 200);
+});

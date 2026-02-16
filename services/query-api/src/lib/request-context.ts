@@ -8,12 +8,44 @@ export type RequestContext = {
   policy: TenantPolicy;
 };
 
-function parseApiKeys(): string[] {
-  const raw = process.env.WIUD_API_KEYS ?? process.env.WIUD_API_KEY ?? "";
-  return raw
+export type AuthResolution = {
+  ok: boolean;
+  authSubject: string;
+  tenantFromToken?: string;
+  reason?: string;
+};
+
+function parseCsv(raw: string | undefined): string[] {
+  return (raw ?? "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function parseApiKeys(): string[] {
+  return parseCsv(process.env.WIUD_API_KEYS ?? process.env.WIUD_API_KEY ?? "");
+}
+
+function parseApiKeyTenantMap(): Record<string, string> {
+  const raw = process.env.WIUD_API_KEY_TENANT_MAP_JSON ?? "";
+  if (!raw.trim()) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    const result: Record<string, string> = {};
+    for (const [token, tenant] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof token === "string" && typeof tenant === "string" && token.trim() && tenant.trim()) {
+        result[token.trim()] = tenant.trim().slice(0, 80);
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
 }
 
 function parseBearerToken(header: string | string[] | undefined): string | null {
@@ -31,6 +63,20 @@ function parseBearerToken(header: string | string[] | undefined): string | null 
   return token;
 }
 
+function shouldRequireAuth(configuredAuthKeys: Set<string>): boolean {
+  const explicit = (process.env.WIUD_REQUIRE_AUTH ?? "").trim().toLowerCase();
+  if (explicit === "true") {
+    return true;
+  }
+  if (explicit === "false") {
+    return false;
+  }
+  if (configuredAuthKeys.size > 0) {
+    return true;
+  }
+  return process.env.NODE_ENV === "production" && process.env.WIUD_ALLOW_ANONYMOUS !== "true";
+}
+
 function normalizeTenantId(request: FastifyRequest): string {
   const raw = request.headers["x-wiud-tenant-id"];
   if (typeof raw !== "string" || !raw.trim()) {
@@ -39,9 +85,9 @@ function normalizeTenantId(request: FastifyRequest): string {
   return raw.trim().slice(0, 80);
 }
 
-export function resolveRequestContext(request: FastifyRequest): RequestContext {
-  const tenantId = normalizeTenantId(request);
-  const authSubject = request.headers.authorization ? "bearer" : "anonymous";
+export function resolveRequestContext(request: FastifyRequest, auth: AuthResolution): RequestContext {
+  const tenantId = auth.tenantFromToken ?? normalizeTenantId(request);
+  const authSubject = auth.authSubject;
   const policy = getTenantPolicy(tenantId);
 
   return {
@@ -51,16 +97,53 @@ export function resolveRequestContext(request: FastifyRequest): RequestContext {
   };
 }
 
-export function requireApiAuthIfConfigured(request: FastifyRequest): boolean {
+export function authorizeRequest(request: FastifyRequest): AuthResolution {
   const apiKeys = parseApiKeys();
-  if (apiKeys.length === 0) {
-    return true;
-  }
-
+  const tenantMap = parseApiKeyTenantMap();
+  const allowed = new Set<string>([...apiKeys, ...Object.keys(tenantMap)]);
+  const requireAuth = shouldRequireAuth(allowed);
   const token = parseBearerToken(request.headers.authorization);
-  if (!token) {
-    return false;
+
+  if (!requireAuth) {
+    if (!token) {
+      return {
+        ok: true,
+        authSubject: "anonymous",
+      };
+    }
+    if (allowed.size === 0 || allowed.has(token)) {
+      return {
+        ok: true,
+        authSubject: "bearer",
+        tenantFromToken: tenantMap[token],
+      };
+    }
+    return {
+      ok: false,
+      authSubject: "anonymous",
+      reason: "invalid_api_token",
+    };
   }
 
-  return apiKeys.includes(token);
+  if (!token) {
+    return {
+      ok: false,
+      authSubject: "anonymous",
+      reason: "missing_api_token",
+    };
+  }
+
+  if (!allowed.has(token)) {
+    return {
+      ok: false,
+      authSubject: "anonymous",
+      reason: "invalid_api_token",
+    };
+  }
+
+  return {
+    ok: true,
+    authSubject: "bearer",
+    tenantFromToken: tenantMap[token],
+  };
 }

@@ -38,16 +38,16 @@ Status: In Progress
 - [x] Add context-aware query filters (version/region/plan/deployment/cloud/date)
 - [x] Add prompt-injection sanitization during ingestion
 - [x] Add answer-time unsafe content detection and policy abstention
-- [ ] Improve change classification precision with section-level semantic diffing
+- [x] Improve change classification precision with section-level semantic diffing
 - [ ] Add false-positive/false-negative tracking loop
 
 ## Milestone 5: Workflow Integrations
-Status: Planned
+Status: In Progress
 
-- [ ] PR/CI doc drift checks
+- [x] PR/CI doc drift checks
 - [ ] Slack runtime integration
 - [ ] IDE extension integration
-- [ ] Unified reliability metrics dashboard
+- [x] Unified reliability metrics dashboard
 
 ## Milestone 9: Packaging and Deployment
 Status: In Progress
@@ -67,11 +67,11 @@ Status: In Progress
 - [ ] Define gated-doc connector requirements (Oracle/SAP-style auth and audit)
 
 ## Milestone 6: Enterprise and Multi-Tenant Controls
-Status: Planned
+Status: In Progress
 
-- [ ] Tenant-aware source policies
-- [ ] Staleness and trust thresholds per org
-- [ ] Source allow/deny governance
+- [x] Tenant-aware source policies
+- [x] Staleness and trust thresholds per org
+- [x] Source allow/deny governance
 - [ ] Audit exports and policy observability
 
 ## Milestone 8: Licensing and Governance
@@ -89,3 +89,13 @@ Status: Completed
 - [x] Add tenant-aware policy primitives (source allow/deny, trust thresholds)
 - [x] Add CI/PR gates for deprecation and breaking-change detection
 - [x] Add reliability/cost outcome metrics for procurement-grade ROI proof
+
+## Milestone 11: Retrieval and Wedge Depth
+Status: In Progress
+
+- [x] Implement first hybrid retrieval layer (ILIKE + Postgres full-text + intent reranking)
+- [x] Add semantic embeddings retrieval path and fuse with lexical candidates
+- [ ] Add retrieval quality evaluation set (developer-phrase vs doc-phrase mismatch)
+- [ ] Add source-specific parsing upgrades for JS-heavy and noisy docs sites
+- [ ] Package change events into prescriptive migration/action recommendations
+- [ ] Publish ICP-specific wedge pack (payments/identity first) with opinionated defaults
