@@ -284,3 +284,41 @@ Slack integrations need a fast, deterministic way to verify webhook delivery dur
 Impact:
 - Teams can validate webhook wiring without waiting for real change events.
 - Webhook override in API is disabled by default and requires `WIUD_ALLOW_TEST_WEBHOOK_OVERRIDE=true`.
+
+## 2026-02-16 - Slack runtime integration model
+Decision:
+Implement Slack runtime with two signature-verified webhook endpoints:
+1) `/v1/slack/commands` for slash commands,
+2) `/v1/slack/events` for app mention/event callbacks.
+
+Why:
+Change alerts alone are one-way. Teams also need direct Slack request->answer workflows with trust controls.
+
+Impact:
+- Slack requests are validated with `WIUD_SLACK_SIGNING_SECRET`.
+- Slash commands support help/search/changes/default answer flows.
+- App mentions can reply in-thread when `WIUD_SLACK_BOT_TOKEN` is configured.
+
+## 2026-02-16 - Governance observability via tenant-scoped exports
+Decision:
+Add governance endpoints for audit export and policy observability:
+- `GET /v1/audit/export`
+- `GET /v1/policy/observability`
+
+Why:
+Enterprise buyers require evidence of policy effectiveness and traceable runtime behavior.
+
+Impact:
+- Telemetry can now be exported in JSON or NDJSON for compliance and BI workflows.
+- Policy observability snapshot reports effective source coverage and risk indicators.
+
+## 2026-02-16 - First ICP pack publication (payments + identity)
+Decision:
+Publish an opinionated pack artifact and playbook for payments/identity workflows as the first ICP execution pack.
+
+Why:
+Positioning needs concrete deployable defaults, not only roadmap language.
+
+Impact:
+- Added `config/packs/payments-identity.json`.
+- Added implementation playbook in `docs/packs/payments-identity.md`.

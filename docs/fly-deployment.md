@@ -77,6 +77,17 @@ Optional on `query-api`:
 fly secrets set ANSWER_STALE_THRESHOLD_MINUTES='1440' --app wud-query-api-prod
 ```
 
+Slack runtime settings on `query-api`:
+
+```bash
+fly secrets set \
+  WIUD_SLACK_SIGNING_SECRET='replace-with-slack-signing-secret' \
+  WIUD_SLACK_BOT_TOKEN='xoxb-...' \
+  WIUD_SLACK_TENANT_ID='default' \
+  WIUD_SLACK_COMMAND_SOURCES='stripe,openai' \
+  --app wud-query-api-prod
+```
+
 ## 3) Deploy query API (runs migrations automatically)
 
 ```bash
@@ -168,16 +179,21 @@ Set Slack webhook secrets on Fly:
 
 ```bash
 fly secrets set \
-  WIUD_SLACK_CHANGE_WEBHOOK_URL='https://hooks.slack.com/services/T000/B000/XXX' \
+WIUD_SLACK_CHANGE_WEBHOOK_URL='https://hooks.slack.com/services/T000/B000/XXX' \
   --app wud-query-api-prod
 
 fly secrets set \
   WIUD_SLACK_CHANGE_WEBHOOK_URL='https://hooks.slack.com/services/T000/B000/XXX' \
   WIUD_SLACK_CHANGE_MIN_SEVERITY='medium' \
   WIUD_SLACK_CHANGE_INCLUDE_UPDATED='false' \
-  WIUD_SLACK_CHANGE_MAX_EVENTS='8' \
+WIUD_SLACK_CHANGE_MAX_EVENTS='8' \
   --app wud-ingestion-worker-prod
 ```
+
+Slack app webhook URLs:
+
+- Slash command request URL: `https://wud-query-api-prod.fly.dev/v1/slack/commands`
+- Events request URL: `https://wud-query-api-prod.fly.dev/v1/slack/events`
 
 Trigger onboarding test via API endpoint:
 

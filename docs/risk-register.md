@@ -129,8 +129,8 @@ Status:
 
 ## Immediate Next Actions (Execution Order)
 
-1. Turn retrieval eval harness into regression gate thresholds in CI.
-2. Add audit export workflows and policy observability views.
+1. Add IDE extension integration with compact-first docs lookup strategy.
+2. Add false-positive/false-negative tracking loop for change classifier quality.
 3. Define legal connector policy templates for public, authenticated, and restricted sources.
-4. Publish ICP wedge pack (payments/identity first) with adoption playbooks.
-5. Expand source parser rules to additional high-churn provider packs.
+4. Expand source parser rules to additional high-churn provider packs.
+5. Add procurement-ready governance dashboards on top of audit export feeds.

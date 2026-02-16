@@ -166,6 +166,102 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Unauthorized'
+  /v1/audit/export:
+    get:
+      summary: Export tenant telemetry audit events
+      operationId: exportAuditEvents
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [json, ndjson]
+      responses:
+        '200':
+          description: Audit export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditExportResponse'
+            application/x-ndjson:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/policy/observability:
+    get:
+      summary: Tenant policy effectiveness and risk observability snapshot
+      operationId: getPolicyObservability
+      responses:
+        '200':
+          description: Policy observability
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyObservabilityResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/slack/commands:
+    post:
+      summary: Slack slash-command webhook endpoint
+      operationId: slackCommands
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Immediate Slack command acknowledgement
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/slack/events:
+    post:
+      summary: Slack Events API webhook endpoint
+      operationId: slackEvents
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Slack event acknowledgement
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
     bearerAuth:
@@ -481,6 +577,77 @@ components:
         sent_at:
           type: string
           format: date-time
+    AuditEvent:
+      type: object
+      required: [id, tenant_id, endpoint, auth_subject, latency_ms, http_status, metadata, created_at]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        endpoint:
+          type: string
+        auth_subject:
+          type: string
+        latency_ms:
+          type: integer
+        http_status:
+          type: integer
+        decision_status:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+    AuditExportResponse:
+      type: object
+      required: [tenant_id, count, events]
+      properties:
+        tenant_id:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+    PolicyObservabilityResponse:
+      type: object
+      required: [tenant_id, policy, source_coverage, last_7d]
+      properties:
+        tenant_id:
+          type: string
+        policy:
+          type: object
+          additionalProperties: true
+        source_coverage:
+          type: object
+          required: [total_sources, effective_sources, denied_sources]
+          properties:
+            total_sources:
+              type: integer
+            effective_sources:
+              type: integer
+            denied_sources:
+              type: integer
+        last_7d:
+          type: object
+          required: [total_requests, policy_blocked_decisions, forbidden_requests, stale_decisions, unsafe_decisions]
+          properties:
+            total_requests:
+              type: integer
+            policy_blocked_decisions:
+              type: integer
+            forbidden_requests:
+              type: integer
+            stale_decisions:
+              type: integer
+            unsafe_decisions:
+              type: integer
     ErrorResponse:
       type: object
       required: [error, message]

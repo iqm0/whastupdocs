@@ -47,7 +47,7 @@ Status: In Progress
 - [x] PR/CI doc drift checks
 - [x] Slack webhook alerts for change events
 - [x] Slack onboarding test endpoint and operator CLI
-- [ ] Slack runtime integration
+- [x] Slack runtime integration
 - [ ] IDE extension integration
 - [x] Unified reliability metrics dashboard
 
@@ -65,7 +65,7 @@ Status: In Progress
 - [x] Prioritize public high-churn docs first (cloud-native + major API ecosystems)
 - [x] Treat Plaid/fintech as a vertical pack, not product-wide assumption
 - [ ] Add provider packs for platform engineering stack (AWS/K8s/Terraform/observability)
-- [ ] Add API ecosystem packs with context rules (plan/region/version)
+- [x] Add first API ecosystem pack with context rules (payments + identity)
 - [ ] Define gated-doc connector requirements (Oracle/SAP-style auth and audit)
 
 ## Milestone 6: Enterprise and Multi-Tenant Controls
@@ -74,7 +74,7 @@ Status: In Progress
 - [x] Tenant-aware source policies
 - [x] Staleness and trust thresholds per org
 - [x] Source allow/deny governance
-- [ ] Audit exports and policy observability
+- [x] Audit exports and policy observability
 
 ## Milestone 8: Licensing and Governance
 Status: In Progress
@@ -100,4 +100,4 @@ Status: In Progress
 - [x] Add retrieval quality evaluation set (developer-phrase vs doc-phrase mismatch)
 - [x] Add source-specific parsing upgrades for JS-heavy and noisy docs sites
 - [x] Package change events into prescriptive migration/action recommendations
-- [ ] Publish ICP-specific wedge pack (payments/identity first) with opinionated defaults
+- [x] Publish ICP-specific wedge pack (payments/identity first) with opinionated defaults

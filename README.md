@@ -178,6 +178,24 @@ Retrieval gate thresholds:
     - uses `WIUD_SLACK_CHANGE_WEBHOOK_URL` by default
     - optional `webhook_url` override requires `WIUD_ALLOW_TEST_WEBHOOK_OVERRIDE=true`
 
+## Slack Runtime
+
+- Slack slash commands endpoint: `POST /v1/slack/commands`
+- Slack Events endpoint: `POST /v1/slack/events`
+- Both endpoints validate Slack request signatures using `WIUD_SLACK_SIGNING_SECRET`.
+- Optional app mention replies require `WIUD_SLACK_BOT_TOKEN`.
+- Optional command source defaults: `WIUD_SLACK_COMMAND_SOURCES` (comma-separated).
+
+## Governance Endpoints
+
+- `GET /v1/audit/export`: tenant-scoped telemetry audit export (`json` or `ndjson`).
+- `GET /v1/policy/observability`: effective source coverage + 7-day policy risk summary.
+
+## ICP Packs
+
+- First wedge pack: `config/packs/payments-identity.json`
+- Playbook: `docs/packs/payments-identity.md`
+
 ## License
 
 This repository is distributed under the `What Is Up, Docs Community License v1.0` (`LICENSE`).

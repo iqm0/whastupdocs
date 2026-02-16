@@ -54,6 +54,15 @@ export const TelemetryQuerySchema = z
   })
   .strict();
 
+export const AuditExportQuerySchema = z
+  .object({
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    limit: z.coerce.number().int().min(1).max(5000).optional(),
+    format: z.enum(["json", "ndjson"]).optional(),
+  })
+  .strict();
+
 export const SlackTestAlertRequestSchema = z
   .object({
     webhook_url: z.string().url().optional(),

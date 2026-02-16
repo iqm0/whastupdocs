@@ -4,13 +4,16 @@ import Fastify, { type FastifyInstance } from "fastify";
 
 import { checkAndConsumeRateLimit, getClientIp, isIpAllowed } from "./lib/access-control.js";
 import { closeDbPool } from "./lib/db.js";
+import { getTenantPolicy } from "./lib/policy.js";
 import { closeQueue } from "./lib/queue.js";
 import { authorizeRequest, resolveRequestContext } from "./lib/request-context.js";
 import { registerAnswerRoute } from "./routes/answer.js";
 import { registerAlertRoutes } from "./routes/alerts.js";
 import { registerChangeRoutes } from "./routes/changes.js";
+import { registerGovernanceRoutes } from "./routes/governance.js";
 import { registerMetricsRoutes } from "./routes/metrics.js";
 import { registerSearchRoute } from "./routes/search.js";
+import { registerSlackRoutes } from "./routes/slack.js";
 import { registerSourceRoutes } from "./routes/sources.js";
 
 export type BuildAppOptions = {
@@ -32,6 +35,33 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await app.register(cors, { origin: true });
   await app.register(sensible);
+  app.addContentTypeParser(
+    "application/json",
+    { parseAs: "string" },
+    (request, body, done) => {
+      const rawBody = String(body);
+      request.rawBody = rawBody;
+      const raw = rawBody.trim();
+      if (!raw) {
+        done(null, {});
+        return;
+      }
+      try {
+        done(null, JSON.parse(raw));
+      } catch (error) {
+        done(error as Error, undefined);
+      }
+    },
+  );
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (request, body, done) => {
+      const rawBody = String(body);
+      request.rawBody = rawBody;
+      done(null, rawBody);
+    },
+  );
 
   app.addHook("onRequest", async (request, reply) => {
     const ip = getClientIp(request);
@@ -43,6 +73,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (!ipLimit.allowed) {
       reply.header("retry-after", String(ipLimit.retryAfterSec));
       return reply.code(429).send({ error: "rate_limited" });
+    }
+
+    if (request.url.startsWith("/v1/slack/")) {
+      const tenantId = process.env.WIUD_SLACK_TENANT_ID ?? "default";
+      request.wiudContext = {
+        tenantId,
+        authSubject: "slack",
+        policy: getTenantPolicy(tenantId),
+      };
+      return;
     }
 
     const auth = authorizeRequest(request);
@@ -67,6 +107,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await registerSourceRoutes(app);
   await registerChangeRoutes(app);
   await registerMetricsRoutes(app);
+  await registerGovernanceRoutes(app);
+  await registerSlackRoutes(app);
 
   app.addHook("onClose", async () => {
     await closeQueue();

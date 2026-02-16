@@ -1,0 +1,40 @@
+{
+  "id": "payments-identity-v1",
+  "name": "Payments + Identity",
+  "description": "Opinionated defaults for fintech and integration-heavy teams handling payment rails, auth, and partner API reliability.",
+  "default_sources": [
+    "stripe",
+    "openai"
+  ],
+  "context_defaults": {
+    "version": "latest",
+    "region": "us",
+    "plan": "enterprise",
+    "deployment_type": "cloud"
+  },
+  "risk_focus": [
+    "breaking_change",
+    "deprecation",
+    "stale_sources",
+    "policy_blocked"
+  ],
+  "ci_gate": {
+    "question": "What changed in authentication, webhook signatures, and payment flow docs this week?",
+    "allow_breaking_default": false,
+    "sources": [
+      "stripe"
+    ]
+  },
+  "slack_defaults": {
+    "change_min_severity": "medium",
+    "include_updated": false,
+    "max_events": 8
+  },
+  "onboarding_checklist": [
+    "Enable query API auth and tenant policy binding for Slack/MCP consumers.",
+    "Configure CI doc gate and retrieval quality gate thresholds.",
+    "Enable Slack change alerts and test via /v1/alerts/slack/test.",
+    "Pin version/region context in agent prompts and workflow templates.",
+    "Run weekly review of breaking/deprecation events and remediation backlog."
+  ]
+}

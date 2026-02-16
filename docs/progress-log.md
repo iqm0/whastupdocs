@@ -108,6 +108,19 @@
   - optional webhook override with explicit safety gate (`WIUD_ALLOW_TEST_WEBHOOK_OVERRIDE`)
   - ingestion-worker operator CLI command: `npm run slack:test`
   - query-api and ingestion-worker tests for onboarding test send path
+- Added Slack runtime integration for app workflows:
+  - signature-verified slash command endpoint `POST /v1/slack/commands`
+  - signature-verified events endpoint `POST /v1/slack/events`
+  - optional app mention threaded replies via `WIUD_SLACK_BOT_TOKEN`
+  - tenant-scoped Slack runtime context (`WIUD_SLACK_TENANT_ID`) and command source defaults
+- Added governance observability endpoints:
+  - `GET /v1/audit/export` (json/ndjson telemetry export)
+  - `GET /v1/policy/observability` (effective source coverage + 7-day risk summary)
+  - governance + Slack runtime library tests in query-api
+- Published first ICP wedge pack:
+  - `config/packs/payments-identity.json`
+  - `docs/packs/payments-identity.md`
+  - includes context defaults, CI gate profile, and onboarding checklist
 
 ### Validation snapshots
 
@@ -119,8 +132,7 @@
 ### In progress
 
 - Add false-positive/false-negative tracking loop for change classification precision.
-- Expand workflow integrations (Slack + IDE UX + production metrics surfaces).
-- Publish ICP wedge pack (payments/identity first) with opinionated defaults.
+- Add IDE extension integration.
 
 ### Risks observed
 
