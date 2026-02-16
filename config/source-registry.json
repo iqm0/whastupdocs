@@ -39,7 +39,9 @@
       "https://plaid.com/docs/api/",
       "https://plaid.com/docs/auth/",
       "https://plaid.com/docs/transactions/",
-      "https://plaid.com/docs/assets/"
+      "https://plaid.com/docs/assets/",
+      "https://plaid.com/docs/payment-initiation/",
+      "https://plaid.com/docs/open-banking/"
     ],
     "trust_score": 1.0,
     "poll_interval_minutes": 60
@@ -52,7 +54,8 @@
     "seed_urls": [
       "https://docs.stripe.com/api",
       "https://docs.stripe.com/payments",
-      "https://docs.stripe.com/webhooks"
+      "https://docs.stripe.com/webhooks",
+      "https://docs.stripe.com/checkout"
     ],
     "trust_score": 1.0,
     "poll_interval_minutes": 60
