@@ -13,3 +13,8 @@ RETRY_BACKOFF_MS = "500"
 
 [processes]
 app = "node services/ingestion-worker/dist/worker.js"
+
+[vm]
+cpu_kind = "shared"
+cpus = 1
+memory = "512mb"
